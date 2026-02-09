@@ -12,4 +12,9 @@ class NoteRepository(private val dao: NoteDao) {
     suspend fun deleteNote(id: Long) {
         dao.deleteById(id)
     }
+
+    suspend fun togglePin(id: Long) {
+        val note = dao.getById(id) ?: return
+        dao.update(note.copy(isPinned = !note.isPinned))
+    }
 }

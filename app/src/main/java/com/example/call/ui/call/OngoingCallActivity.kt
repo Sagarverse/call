@@ -30,6 +30,7 @@ import com.example.call.databinding.ActivityOngoingCallBinding
 import com.example.call.databinding.ViewCallControlBinding
 import com.example.call.telecom.CallController
 import com.example.call.util.ContactLookup
+import com.example.call.util.GesturePreferences
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -46,7 +47,10 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     
     private lateinit var sensorManager: SensorManager
     private var proximitySensor: Sensor? = null
+    private var accelerometer: Sensor? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var lastShakeTime: Long = 0
+    private val SHAKE_THRESHOLD = 12.0f
 
     private val handler = Handler(Looper.getMainLooper())
     private val timerRunnable = object : Runnable {
@@ -64,7 +68,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         setupControls()
         observeAudioState()
         observeCallState()
-        setupProximitySensor()
+        setupSensors()
         
         binding.endCall.setOnClickListener {
             CallController.disconnect()
@@ -72,9 +76,13 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
-    private fun setupProximitySensor() {
+    private fun setupSensors() {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
+        
+        if (GesturePreferences.isShakeToAcceptEnabled(this)) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        }
         
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -98,7 +106,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         // Mute
         binding.mute.controlLabel.text = getString(R.string.mute)
         binding.mute.controlIcon.setIconResource(android.R.drawable.ic_lock_silent_mode)
-        binding.mute.root.setOnClickListener {
+        binding.mute.controlIcon.setOnClickListener {
             val currentState = CallController.audioState.value
             val isCurrentlyMuted = currentState?.isMuted ?: false
             CallController.setMuted(!isCurrentlyMuted)
@@ -107,14 +115,14 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         // Keypad
         binding.keypad.controlLabel.text = getString(R.string.keypad)
         binding.keypad.controlIcon.setIconResource(android.R.drawable.ic_dialog_dialer)
-        binding.keypad.root.setOnClickListener {
+        binding.keypad.controlIcon.setOnClickListener {
             showKeypadDialog()
         }
 
         // Speaker
         binding.speaker.controlLabel.text = getString(R.string.speaker)
         binding.speaker.controlIcon.setIconResource(android.R.drawable.stat_sys_speakerphone)
-        binding.speaker.root.setOnClickListener {
+        binding.speaker.controlIcon.setOnClickListener {
             val currentState = CallController.audioState.value
             val isSpeakerOn = currentState?.route == CallAudioState.ROUTE_SPEAKER
             CallController.toggleSpeaker(!isSpeakerOn)
@@ -123,7 +131,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         // Add Call
         binding.addCall.controlLabel.text = getString(R.string.add_call)
         binding.addCall.controlIcon.setIconResource(android.R.drawable.ic_input_add)
-        binding.addCall.root.setOnClickListener {
+        binding.addCall.controlIcon.setOnClickListener {
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
             }
@@ -133,7 +141,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         // Hold
         binding.hold.controlLabel.text = getString(R.string.hold)
         binding.hold.controlIcon.setIconResource(android.R.drawable.ic_media_pause)
-        binding.hold.root.setOnClickListener {
+        binding.hold.controlIcon.setOnClickListener {
             isOnHold = !isOnHold
             CallController.currentCall?.let {
                 if (isOnHold) it.hold() else it.unhold()
@@ -144,7 +152,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         // Record
         binding.record.controlLabel.text = getString(R.string.record)
         binding.record.controlIcon.setIconResource(android.R.drawable.presence_video_online)
-        binding.record.root.setOnClickListener {
+        binding.record.controlIcon.setOnClickListener {
             if (isRecording) {
                 stopRecording()
             } else {
@@ -228,7 +236,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     private fun updateRecordStateUI() {
         val bindingRecord = ViewCallControlBinding.bind(binding.record.root)
         val activeColor = ContextCompat.getColor(this, R.color.call_red)
-        val inactiveColor = ContextCompat.getColor(this, R.color.bg_dark_elevated)
+        val inactiveColor = ContextCompat.getColor(this, R.color.glass_white)
         
         bindingRecord.controlIcon.backgroundTintList = ColorStateList.valueOf(if (isRecording) activeColor else inactiveColor)
         bindingRecord.controlIcon.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white))
@@ -236,8 +244,8 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
 
     private fun toggleControlVisuals(controlBinding: ViewCallControlBinding, isActive: Boolean) {
         val activeColor = ContextCompat.getColor(this, R.color.white)
-        val inactiveColor = ContextCompat.getColor(this, R.color.bg_dark_elevated)
-        val activeIconTint = ContextCompat.getColor(this, R.color.bg_dark)
+        val inactiveColor = ContextCompat.getColor(this, R.color.glass_white)
+        val activeIconTint = ContextCompat.getColor(this, R.color.black)
         val inactiveIconTint = ContextCompat.getColor(this, R.color.white)
 
         if (isActive) {
@@ -299,6 +307,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     override fun onResume() {
         super.onResume()
         proximitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
 
     override fun onPause() {
@@ -358,11 +367,29 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        if (event.sensor.type == Sensor.TYPE_PROXIMITY) {
-            if (event.values[0] < (proximitySensor?.maximumRange ?: 1f)) {
-                if (wakeLock?.isHeld == false) wakeLock?.acquire()
-            } else {
-                if (wakeLock?.isHeld == true) wakeLock?.release()
+        when (event.sensor.type) {
+            Sensor.TYPE_PROXIMITY -> {
+                if (event.values[0] < (proximitySensor?.maximumRange ?: 1f)) {
+                    if (wakeLock?.isHeld == false) wakeLock?.acquire()
+                } else {
+                    if (wakeLock?.isHeld == true) wakeLock?.release()
+                }
+            }
+            Sensor.TYPE_ACCELEROMETER -> handleShakeToEnd(event)
+        }
+    }
+
+    private fun handleShakeToEnd(event: SensorEvent) {
+        val now = System.currentTimeMillis()
+        if ((now - lastShakeTime) > 1000) {
+            val x = event.values[0]
+            val y = event.values[1]
+            val z = event.values[2]
+            val acceleration = (x * x + y * y + z * z) / (SensorManager.GRAVITY_EARTH * SensorManager.GRAVITY_EARTH)
+            if (acceleration > SHAKE_THRESHOLD) {
+                lastShakeTime = now
+                CallController.disconnect()
+                finish()
             }
         }
     }

@@ -26,16 +26,14 @@ class CallSummaryViewModel(
 
     fun loadById(id: Long) {
         viewModelScope.launch {
-            // Logic to load specific log by ID from repository
-            // For now, we fallback to latest if repository doesn't have findById
-            _latest.value = repository.getLatest()
+            _latest.value = repository.findById(id)
         }
     }
 
     fun saveNoteAndTag(note: String?, tag: String?) {
         viewModelScope.launch {
-            val current = _latest.value
-            if (current != null && !note.isNullOrBlank()) {
+            val current = _latest.value ?: return@launch
+            if (!note.isNullOrBlank()) {
                 val noteEntity = NoteEntity(
                     phoneNumber = current.phoneNumber,
                     displayName = current.displayName,
@@ -45,8 +43,8 @@ class CallSummaryViewModel(
                 )
                 noteRepository.addNote(noteEntity)
             }
-            repository.updateLatest(note, tag)
-            _latest.value = repository.getLatest()
+            repository.updateNoteTag(current.id, note, tag)
+            _latest.value = repository.findById(current.id)
         }
     }
 

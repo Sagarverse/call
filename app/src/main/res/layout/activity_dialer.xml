@@ -8,12 +8,25 @@
     android:background="@color/bg_dark"
     tools:ignore="Overdraw">
 
+    <TextView
+        android:id="@+id/app_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="16dp"
+        android:fontFamily="sans-serif-medium"
+        android:text="SGR Call"
+        android:textColor="@color/text_primary"
+        android:textSize="24sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingsButton"
         style="@style/Widget.Material3.Button.IconButton"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
         android:contentDescription="@string/settings"
         app:icon="@android:drawable/ic_menu_preferences"
@@ -25,7 +38,7 @@
         android:id="@+id/dialer_input"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="60dp"
+        android:layout_marginTop="40dp"
         android:background="@null"
         android:fontFamily="sans-serif-light"
         android:gravity="center"
@@ -39,7 +52,7 @@
         android:textSize="44sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/app_title" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/backspace"
@@ -68,14 +81,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="24dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp"
         android:columnCount="3"
         android:rowCount="4"
         app:layout_constraintBottom_toTopOf="@id/callButton"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/dialer_input">
+        app:layout_constraintStart_toStartOf="parent">
 
         <include layout="@layout/view_dialer_button" android:id="@+id/digit1"
             android:layout_width="0dp" android:layout_height="wrap_content"
@@ -123,7 +134,7 @@
         android:id="@+id/callButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="16dp"
         android:contentDescription="@string/call"
         app:backgroundTint="@color/call_green"
         app:elevation="0dp"
@@ -138,16 +149,18 @@
     <LinearLayout
         android:id="@+id/bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="72dp"
+        android:layout_height="wrap_content"
         android:background="@color/bg_dark_elevated"
         android:gravity="center"
         android:orientation="horizontal"
+        android:paddingBottom="16dp"
+        android:paddingTop="12dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <TextView
             android:id="@+id/callLogsButton"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
@@ -160,7 +173,7 @@
         <TextView
             android:id="@+id/notesButton"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
@@ -173,7 +186,7 @@
         <TextView
             android:id="@+id/callStatsButton"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"

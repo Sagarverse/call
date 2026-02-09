@@ -8,7 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
+import android.view.GestureDetector
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -28,11 +30,13 @@ import com.example.call.util.GesturePreferences
 import com.example.call.util.RoleHelper
 import com.example.call.util.SimPreferences
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDialerBinding
     private lateinit var viewModel: DialerViewModel
     private lateinit var repository: CallLogRepository
+    private lateinit var gestureDetector: GestureDetector
 
     private var volumeUpPressCount = 0
     private var volumeDownPressCount = 0
@@ -66,6 +70,7 @@ class MainActivity : AppCompatActivity() {
 
         setupDialPad()
         setupActions()
+        setupSwipeGestures()
         
         binding.dialerInput.showSoftInputOnFocus = false
         
@@ -73,6 +78,33 @@ class MainActivity : AppCompatActivity() {
 
         if (!RoleHelper.isDefaultDialer(this)) {
             RoleHelper.requestDialerRole(this, roleRequestLauncher)
+        }
+    }
+
+    private fun setupSwipeGestures() {
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null) return false
+                val diffY = e2.y - e1.y
+                val diffX = e2.x - e1.x
+                if (abs(diffY) > abs(diffX) && abs(diffY) > 100 && abs(velocityY) > 100) {
+                    if (diffY < 0) { // Swipe Up
+                        startActivity(Intent(this@MainActivity, CallLogActivity::class.java))
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+
+        binding.dialerRoot.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            true
         }
     }
 

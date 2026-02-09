@@ -4,17 +4,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black"
-    tools:ignore="Overdraw">
+    android:background="@color/black">
 
     <ImageView
         android:id="@+id/callerBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha="0.2"
+        android:alpha="0.5"
         android:scaleType="centerCrop"
-        android:contentDescription="@null"
-        android:importantForAccessibility="no" />
+        android:contentDescription="@null" />
 
     <View
         android:layout_width="match_parent"
@@ -30,6 +28,7 @@
         android:textColor="@color/white"
         android:textSize="16sp"
         android:fontFamily="sans-serif-medium"
+        android:alpha="0.8"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -41,8 +40,8 @@
         android:layout_marginTop="12dp"
         android:gravity="center"
         android:textColor="@color/white"
-        android:textSize="32sp"
-        android:fontFamily="sans-serif-light"
+        android:textSize="36sp"
+        android:fontFamily="sans-serif-medium"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/callStatus" />
@@ -53,92 +52,63 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:gravity="center"
-        android:textColor="@color/onSurfaceVariant"
-        android:textSize="16sp"
+        android:textColor="@color/text_secondary"
+        android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/callerName" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/controls_container"
-        android:layout_width="match_parent"
+    <GridLayout
+        android:id="@+id/controls_grid"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
-        android:paddingHorizontal="32dp"
-        app:layout_constraintBottom_toTopOf="@id/endCall">
+        android:columnCount="3"
+        android:useDefaultMargins="true"
+        android:layout_marginBottom="40dp"
+        app:layout_constraintBottom_toTopOf="@id/endCall"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <include
             android:id="@+id/mute"
-            layout="@layout/view_call_control"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/keypad" />
+            layout="@layout/view_call_control" />
 
         <include
             android:id="@+id/keypad"
-            layout="@layout/view_call_control"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toEndOf="@id/mute"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/speaker" />
+            layout="@layout/view_call_control" />
 
         <include
             android:id="@+id/speaker"
-            layout="@layout/view_call_control"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toEndOf="@id/keypad"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            layout="@layout/view_call_control" />
 
         <include
             android:id="@+id/addCall"
-            layout="@layout/view_call_control"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/mute"
-            app:layout_constraintEnd_toStartOf="@id/hold"
-            android:layout_marginTop="16dp" />
+            layout="@layout/view_call_control" />
 
         <include
             android:id="@+id/hold"
-            layout="@layout/view_call_control"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toEndOf="@id/addCall"
-            app:layout_constraintTop_toBottomOf="@id/keypad"
-            app:layout_constraintEnd_toStartOf="@id/record"
-            android:layout_marginTop="16dp" />
+            layout="@layout/view_call_control" />
 
         <include
             android:id="@+id/record"
-            layout="@layout/view_call_control"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toEndOf="@id/hold"
-            app:layout_constraintTop_toBottomOf="@id/speaker"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="16dp" />
+            layout="@layout/view_call_control" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </GridLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/endCall"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="64dp"
-        android:contentDescription="@string/end_call"
+        android:layout_marginBottom="80dp"
         app:backgroundTint="@color/call_red"
-        app:fabCustomSize="72dp"
+        app:fabCustomSize="76dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:maxImageSize="36dp"
         app:srcCompat="@android:drawable/ic_menu_close_clear_cancel"
-        app:tint="@color/white" />
+        app:tint="@color/white"
+        app:elevation="0dp"
+        app:pressedTranslationZ="0dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

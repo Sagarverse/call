@@ -13,6 +13,8 @@ class CallLogRepository(private val dao: CallLogDao) {
 
     suspend fun getAllNow(): List<CallLogEntity> = dao.getAllNow()
 
+    suspend fun findById(id: Long): CallLogEntity? = dao.findById(id)
+
     suspend fun addLog(log: CallLogEntity) {
         dao.insert(log)
     }
@@ -27,11 +29,6 @@ class CallLogRepository(private val dao: CallLogDao) {
         dao.updateNoteTagById(id, note, tag)
     }
 
-    suspend fun updateLatest(note: String?, tag: String?) {
-        val latest = dao.getLatest() ?: return
-        dao.updateNoteTagById(latest.id, note, tag)
-    }
-
     suspend fun saveCallFromTelecom(call: Call): Long {
         val details = call.details
         val number = details.handle?.schemeSpecificPart ?: ""
@@ -41,7 +38,7 @@ class CallLogRepository(private val dao: CallLogDao) {
         } else 0
         
         val direction = when {
-            call.state == Call.STATE_DISCONNECTED && duration == 0L && details.callDirection == Call.Details.DIRECTION_INCOMING -> "Missed"
+            details.callDirection == Call.Details.DIRECTION_INCOMING && duration == 0L -> "Missed"
             details.callDirection == Call.Details.DIRECTION_INCOMING -> "Incoming"
             details.callDirection == Call.Details.DIRECTION_OUTGOING -> "Outgoing"
             else -> "Unknown"
@@ -64,11 +61,6 @@ class CallLogRepository(private val dao: CallLogDao) {
         canReadContacts: Boolean
     ) {
         withContext(Dispatchers.IO) {
-            val existingLocalData = dao.getAllNow().associateBy(
-                { "${it.phoneNumber}_${it.timestamp}" },
-                { it.note to it.tag }
-            )
-
             val projection = arrayOf(
                 CallLog.Calls._ID,
                 CallLog.Calls.NUMBER,
@@ -108,8 +100,6 @@ class CallLogRepository(private val dao: CallLogDao) {
                             cachedName
                         }
 
-                        val localData = existingLocalData["${number}_${timestamp}"]
-
                         results.add(
                             CallLogEntity(
                                 systemId = systemId,
@@ -118,8 +108,8 @@ class CallLogRepository(private val dao: CallLogDao) {
                                 direction = direction,
                                 timestamp = timestamp,
                                 durationSeconds = durationSeconds,
-                                note = localData?.first,
-                                tag = localData?.second
+                                note = null,
+                                tag = null
                             )
                         )
                     }
@@ -128,8 +118,9 @@ class CallLogRepository(private val dao: CallLogDao) {
                 return@withContext
             }
 
-            dao.clearAll()
             if (results.isNotEmpty()) {
+                // Merge or clear/insert
+                dao.clearAll()
                 dao.insertAll(results)
             }
         }

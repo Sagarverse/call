@@ -1,145 +1,168 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="20dp"
-    android:background="@drawable/bg_screen_gradient">
+    android:background="@color/bg_dark">
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/backButton"
-        style="@style/Widget.Material3.Button.TextButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/back"
+        style="@style/Widget.Material3.Button.IconButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        app:icon="@android:drawable/ic_menu_revert"
+        app:iconTint="@color/text_secondary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/settingsTitle"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:fontFamily="sans-serif-medium"
         android:text="@string/settings"
-        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+        android:textColor="@color/text_primary"
+        android:textSize="32sp"
+        app:layout_constraintBottom_toBottomOf="@id/backButton"
         app:layout_constraintStart_toEndOf="@id/backButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginStart="12dp" />
+        app:layout_constraintTop_toTopOf="@id/backButton" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/permissionsButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/permissions"
-        app:layout_constraintTop_toBottomOf="@id/settingsTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="20dp" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/simButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/sim_management"
-        app:layout_constraintTop_toBottomOf="@id/permissionsButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp" />
-
-    <TextView
-        android:id="@+id/gesturesHeader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Gestures"
-        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/simButton"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/settingsTitle">
 
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/shakeToAcceptSwitch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Shake to accept"
-        android:layout_marginTop="12dp"
-        app:layout_constraintTop_toBottomOf="@id/gesturesHeader"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/flipToSilenceSwitch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Flip to silence"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/shakeToAcceptSwitch"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/powerButtonMutesSwitch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Power button mutes"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/flipToSilenceSwitch"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/volumeShortcutsSwitch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Volume shortcuts"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/powerButtonMutesSwitch"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <TextView
-        android:id="@+id/appearanceHeader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Appearance"
-        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-        android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/volumeShortcutsSwitch"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <com.google.android.material.button.MaterialButtonToggleGroup
-        android:id="@+id/themeToggleGroup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        app:singleSelection="true"
-        app:selectionRequired="true"
-        app:layout_constraintTop_toBottomOf="@id/appearanceHeader"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/themeLight"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Light" />
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="40dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/themeDark"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Dark" />
+            <!-- System Group -->
+            <TextView
+                style="@style/SettingsHeader"
+                android:text="System" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/themeSystem"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="System" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/permissionsButton"
+                style="@style/SettingsButton"
+                android:text="@string/permissions"
+                app:icon="@android:drawable/ic_lock_lock" />
 
-    </com.google.android.material.button.MaterialButtonToggleGroup>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/simButton"
+                style="@style/SettingsButton"
+                android:text="@string/sim_management"
+                app:icon="@android:drawable/ic_menu_agenda" />
+
+            <!-- Gestures Group -->
+            <TextView
+                style="@style/SettingsHeader"
+                android:text="Gestures"
+                android:layout_marginTop="24dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/SettingsCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/shakeToAcceptSwitch"
+                        style="@style/SettingsSwitch"
+                        android:text="Fast Shake (Accept/End)" />
+
+                    <View style="@style/SettingsDivider" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/flipToSilenceSwitch"
+                        style="@style/SettingsSwitch"
+                        android:text="Flip to Silence" />
+
+                    <View style="@style/SettingsDivider" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/powerButtonMutesSwitch"
+                        style="@style/SettingsSwitch"
+                        android:text="Power Button Mutes" />
+
+                    <View style="@style/SettingsDivider" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/volumeShortcutsSwitch"
+                        style="@style/SettingsSwitch"
+                        android:text="Volume Shortcuts" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Appearance Group -->
+            <TextView
+                style="@style/SettingsHeader"
+                android:text="Appearance"
+                android:layout_marginTop="24dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/SettingsCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Theme Mode"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/themeToggleGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/themeLight"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Light" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/themeDark"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Dark" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/themeSystem"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="System" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -11,5 +11,6 @@ data class NoteEntity(
     val displayName: String?,
     val timestamp: Long,
     val note: String,
-    val tag: String?
+    val tag: String?,
+    val isPinned: Boolean = false
 )

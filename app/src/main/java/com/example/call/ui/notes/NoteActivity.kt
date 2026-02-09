@@ -23,11 +23,18 @@ class NoteActivity : AppCompatActivity() {
         val db = AppDatabase.getInstance(this)
         repository = NoteRepository(db.noteDao())
         
-        adapter = NoteAdapter { note ->
-            lifecycleScope.launch {
-                repository.deleteNote(note.id)
+        adapter = NoteAdapter(
+            onPinToggle = { note ->
+                lifecycleScope.launch {
+                    repository.togglePin(note.id)
+                }
+            },
+            onDelete = { note ->
+                lifecycleScope.launch {
+                    repository.deleteNote(note.id)
+                }
             }
-        }
+        )
 
         binding.notesList.layoutManager = LinearLayoutManager(this)
         binding.notesList.adapter = adapter

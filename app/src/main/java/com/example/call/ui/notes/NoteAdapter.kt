@@ -1,6 +1,7 @@
 package com.example.call.ui.notes
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -10,8 +11,10 @@ import com.example.call.databinding.ItemNoteBinding
 import java.text.DateFormat
 import java.util.Date
 
-class NoteAdapter(private val onDelete: (NoteEntity) -> Unit) :
-    ListAdapter<NoteEntity, NoteAdapter.NoteViewHolder>(DIFF_CALLBACK) {
+class NoteAdapter(
+    private val onPinToggle: (NoteEntity) -> Unit,
+    private val onDelete: (NoteEntity) -> Unit
+) : ListAdapter<NoteEntity, NoteAdapter.NoteViewHolder>(DIFF_CALLBACK) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NoteViewHolder {
         val binding = ItemNoteBinding.inflate(
@@ -19,7 +22,7 @@ class NoteAdapter(private val onDelete: (NoteEntity) -> Unit) :
             parent,
             false
         )
-        return NoteViewHolder(binding, onDelete)
+        return NoteViewHolder(binding, onPinToggle, onDelete)
     }
 
     override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
@@ -28,6 +31,7 @@ class NoteAdapter(private val onDelete: (NoteEntity) -> Unit) :
 
     class NoteViewHolder(
         private val binding: ItemNoteBinding,
+        private val onPinToggle: (NoteEntity) -> Unit,
         private val onDelete: (NoteEntity) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
@@ -38,8 +42,16 @@ class NoteAdapter(private val onDelete: (NoteEntity) -> Unit) :
             binding.noteMetadata.text = "$callerInfo • $dateStr"
             binding.noteTag.text = item.tag ?: ""
             
+            binding.pinIcon.visibility = if (item.isPinned) View.VISIBLE else View.GONE
+            
+            binding.root.setOnClickListener {
+                onPinToggle(item)
+            }
+            
             binding.root.setOnLongClickListener {
-                onDelete(item)
+                if (!item.isPinned) {
+                    onDelete(item)
+                }
                 true
             }
         }

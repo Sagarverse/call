@@ -44,17 +44,9 @@ class CallSummaryActivity : AppCompatActivity() {
             finish()
         }
 
-        val specificLogId = intent.getLongExtra("EXTRA_LOG_ID", -1L)
-
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.latest.collect { latest ->
-                    val displayLog = if (specificLogId != -1L) {
-                        // If we have a specific ID, try to find it, else fallback to latest
-                        // (Ideally ViewModel would handle finding by ID, but for now we fallback)
-                        latest
-                    } else latest
-
+                viewModel.latest.collect { displayLog ->
                     if (displayLog == null) {
                         binding.callerNameSummary.text = getString(R.string.no_recent_call)
                         binding.callerNumberSummary.text = ""

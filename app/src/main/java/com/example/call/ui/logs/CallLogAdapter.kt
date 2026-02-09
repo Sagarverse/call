@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.View
 import android.widget.TextView
+import android.util.TypedValue
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -122,7 +123,10 @@ class CallLogAdapter(
             if (item.direction.lowercase(Locale.ROOT) == "missed") {
                 binding.callerName.setTextColor(ContextCompat.getColor(context, R.color.call_red))
             } else {
-                binding.callerName.setTextColor(ContextCompat.getColor(context, R.color.onSurface))
+                // Safely resolve text color
+                val typedValue = TypedValue()
+                context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
+                binding.callerName.setTextColor(typedValue.data)
             }
 
             binding.root.setOnClickListener { onCallClick(item) }
