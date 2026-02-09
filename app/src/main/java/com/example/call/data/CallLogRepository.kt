@@ -36,7 +36,7 @@ class CallLogRepository(private val dao: CallLogDao) {
         val duration = if (details.connectTimeMillis > 0) {
             (System.currentTimeMillis() - details.connectTimeMillis) / 1000
         } else 0
-        
+
         val direction = when {
             details.callDirection == Call.Details.DIRECTION_INCOMING && duration == 0L -> "Missed"
             details.callDirection == Call.Details.DIRECTION_INCOMING -> "Incoming"
@@ -69,7 +69,7 @@ class CallLogRepository(private val dao: CallLogDao) {
                 CallLog.Calls.DATE,
                 CallLog.Calls.DURATION
             )
-            
+
             val results = mutableListOf<CallLogEntity>()
             try {
                 contentResolver.query(
@@ -93,8 +93,8 @@ class CallLogRepository(private val dao: CallLogDao) {
                         val timestamp = cursor.getLong(dateIndex)
                         val direction = mapDirection(cursor.getInt(typeIndex))
                         val durationSeconds = cursor.getLong(durationIndex)
-                        
-                        val displayName = if (cachedName.isNullOrBlank() && canReadContacts) {
+
+                        val displayName = if (canReadContacts) {
                             lookupContactName(contentResolver, number)
                         } else {
                             cachedName

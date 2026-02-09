@@ -8,6 +8,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.telecom.TelecomManager
 import android.view.GestureDetector
 import android.view.KeyEvent
@@ -32,7 +34,8 @@ class IncomingCallActivity : AppCompatActivity(), SensorEventListener {
     private var accelerometer: Sensor? = null
     private var proximitySensor: Sensor? = null
     private var lastShakeTime: Long = 0
-    private val SHAKE_THRESHOLD = 12.0f
+    private val SHAKE_THRESHOLD = 20.0f
+    private var isShakeEnabled = true
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -208,6 +211,7 @@ class IncomingCallActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun handleShake(event: SensorEvent) {
+        if (!isShakeEnabled) return
         val now = System.currentTimeMillis()
         if ((now - lastShakeTime) > 1000) {
             val x = event.values[0]
@@ -216,7 +220,9 @@ class IncomingCallActivity : AppCompatActivity(), SensorEventListener {
             val acceleration = (x * x + y * y + z * z) / (SensorManager.GRAVITY_EARTH * SensorManager.GRAVITY_EARTH)
             if (acceleration > SHAKE_THRESHOLD) { 
                 lastShakeTime = now
+                isShakeEnabled = false
                 answerCall()
+                Handler(Looper.getMainLooper()).postDelayed({ isShakeEnabled = true }, 2000)
             }
         }
     }

@@ -1,18 +1,34 @@
 package com.example.call.ui.settings
 
+import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.example.call.R
 import com.example.call.databinding.ActivitySettingsBinding
 import com.example.call.ui.sim.SimManagementActivity
 import com.example.call.ui.permissions.PermissionsActivity
-import com.example.call.ui.notes.NoteActivity
-import com.example.call.util.GesturePreferences
+import com.example.call.util.AppSettings
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
+
+    private val folderPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            AppSettings.setRecordingStoragePath(this, it.toString())
+            binding.recordingPathText.text = it.path
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,6 +38,7 @@ class SettingsActivity : AppCompatActivity() {
         setupButtons()
         setupSwitches()
         setupThemeToggle()
+        updateRecordingPathUI()
     }
 
     private fun setupButtons() {
@@ -33,33 +50,42 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, SimManagementActivity::class.java))
         }
 
+        binding.recordingLocationButton.setOnClickListener {
+            folderPickerLauncher.launch(null)
+        }
+
         binding.backButton.setOnClickListener { finish() }
     }
 
     private fun setupSwitches() {
-        binding.shakeToAcceptSwitch.isChecked = GesturePreferences.isShakeToAcceptEnabled(this)
+        binding.shakeToAcceptSwitch.isChecked = AppSettings.isShakeToAcceptEnabled(this)
         binding.shakeToAcceptSwitch.setOnCheckedChangeListener { _, isChecked ->
-            GesturePreferences.setShakeToAcceptEnabled(this, isChecked)
+            AppSettings.setShakeToAcceptEnabled(this, isChecked)
         }
 
-        binding.flipToSilenceSwitch.isChecked = GesturePreferences.isFlipToSilenceEnabled(this)
+        binding.flipToSilenceSwitch.isChecked = AppSettings.isFlipToSilenceEnabled(this)
         binding.flipToSilenceSwitch.setOnCheckedChangeListener { _, isChecked ->
-            GesturePreferences.setFlipToSilenceEnabled(this, isChecked)
+            AppSettings.setFlipToSilenceEnabled(this, isChecked)
         }
 
-        binding.powerButtonMutesSwitch.isChecked = GesturePreferences.isPowerButtonMutesEnabled(this)
+        binding.powerButtonMutesSwitch.isChecked = AppSettings.isPowerButtonMutesEnabled(this)
         binding.powerButtonMutesSwitch.setOnCheckedChangeListener { _, isChecked ->
-            GesturePreferences.setPowerButtonMutesEnabled(this, isChecked)
+            AppSettings.setPowerButtonMutesEnabled(this, isChecked)
         }
 
-        binding.volumeShortcutsSwitch.isChecked = GesturePreferences.isVolumeShortcutsEnabled(this)
+        binding.volumeShortcutsSwitch.isChecked = AppSettings.isVolumeShortcutsEnabled(this)
         binding.volumeShortcutsSwitch.setOnCheckedChangeListener { _, isChecked ->
-            GesturePreferences.setVolumeShortcutsEnabled(this, isChecked)
+            AppSettings.setVolumeShortcutsEnabled(this, isChecked)
+        }
+
+        binding.autoRecordSwitch.isChecked = AppSettings.isAutoCallRecordingEnabled(this)
+        binding.autoRecordSwitch.setOnCheckedChangeListener { _, isChecked ->
+            AppSettings.setAutoCallRecordingEnabled(this, isChecked)
         }
     }
 
     private fun setupThemeToggle() {
-        val currentMode = GesturePreferences.getThemeMode(this)
+        val currentMode = AppSettings.getThemeMode(this)
         when (currentMode) {
             AppCompatDelegate.MODE_NIGHT_NO -> binding.themeToggleGroup.check(R.id.themeLight)
             AppCompatDelegate.MODE_NIGHT_YES -> binding.themeToggleGroup.check(R.id.themeDark)
@@ -73,8 +99,18 @@ class SettingsActivity : AppCompatActivity() {
                     R.id.themeDark -> AppCompatDelegate.MODE_NIGHT_YES
                     else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
                 }
-                GesturePreferences.setThemeMode(this, mode)
+                AppSettings.setThemeMode(this, mode)
             }
+        }
+    }
+
+    private fun updateRecordingPathUI() {
+        val path = AppSettings.getRecordingStoragePath(this)
+        if (path != null) {
+            val uri = Uri.parse(path)
+            binding.recordingPathText.text = uri.path
+        } else {
+            binding.recordingPathText.text = "Default: Internal Storage/Recordings"
         }
     }
 }

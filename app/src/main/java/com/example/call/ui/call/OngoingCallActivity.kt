@@ -50,7 +50,8 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     private var accelerometer: Sensor? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var lastShakeTime: Long = 0
-    private val SHAKE_THRESHOLD = 12.0f
+    private val SHAKE_THRESHOLD = 20.0f
+    private var isShakeEnabled = true
 
     private val handler = Handler(Looper.getMainLooper())
     private val timerRunnable = object : Runnable {
@@ -380,6 +381,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun handleShakeToEnd(event: SensorEvent) {
+        if (!isShakeEnabled) return
         val now = System.currentTimeMillis()
         if ((now - lastShakeTime) > 1000) {
             val x = event.values[0]
@@ -388,8 +390,10 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
             val acceleration = (x * x + y * y + z * z) / (SensorManager.GRAVITY_EARTH * SensorManager.GRAVITY_EARTH)
             if (acceleration > SHAKE_THRESHOLD) {
                 lastShakeTime = now
+                isShakeEnabled = false
                 CallController.disconnect()
                 finish()
+                Handler(Looper.getMainLooper()).postDelayed({ isShakeEnabled = true }, 2000)
             }
         }
     }
