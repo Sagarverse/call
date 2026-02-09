@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Premium Dark Palette -->
+    <color name="bg_dark">#0A0A0A</color>
+    <color name="bg_dark_elevated">#141414</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#8E8E93</color>
+    <color name="text_tertiary">#48484A</color>
+
+    <color name="call_green">#30D158</color>
+    <color name="call_red">#FF453A</color>
+
+    <color name="divider">#2C2C2E</color>
+
+    <!-- Fallbacks/Standard -->
+    <color name="primary">#0A0A0A</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="surface">#0A0A0A</color>
+    <color name="onSurface">#FFFFFF</color>
+    <color name="onSurfaceVariant">#8E8E93</color>
+
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+
+    <!-- Gradients -->
+    <color name="grad_start">#1C1C1E</color>
+    <color name="grad_end">#0A0A0A</color>
+</resources>

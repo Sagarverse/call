@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    tools:ignore="Overdraw">
+
+    <TextView
+        android:id="@+id/call_logs_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="64dp"
+        android:fontFamily="sans-serif-light"
+        android:text="@string/call_logs_title"
+        android:textColor="@color/text_primary"
+        android:textSize="34sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/backButton"
+        style="@style/Widget.Material3.Button.IconButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="16dp"
+        app:icon="@android:drawable/ic_menu_revert"
+        app:iconTint="@color/text_secondary"
+        app:layout_constraintBottom_toBottomOf="@id/call_logs_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/call_logs_title" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/search_layout"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="24dp"
+        android:hint="@string/search_calls"
+        android:textColorHint="@color/text_tertiary"
+        app:boxStrokeColor="@color/divider"
+        app:boxStrokeWidth="1dp"
+        app:hintTextColor="@color/text_secondary"
+        app:layout_constraintTop_toBottomOf="@id/call_logs_title"
+        app:startIconDrawable="@android:drawable/ic_menu_search"
+        app:startIconTint="@color/text_tertiary">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/searchInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/filterGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/search_layout"
+        app:singleSelection="true">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/filter_all"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/filter_all"
+            android:textColor="@color/text_primary"
+            app:chipBackgroundColor="@color/bg_dark_elevated"
+            app:chipStrokeColor="@color/divider" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/filter_missed"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/filter_missed"
+            android:textColor="@color/text_primary"
+            app:chipBackgroundColor="@color/bg_dark_elevated"
+            app:chipStrokeColor="@color/divider" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/filter_incoming"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/filter_incoming"
+            android:textColor="@color/text_primary"
+            app:chipBackgroundColor="@color/bg_dark_elevated"
+            app:chipStrokeColor="@color/divider" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/filter_outgoing"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/filter_outgoing"
+            android:textColor="@color/text_primary"
+            app:chipBackgroundColor="@color/bg_dark_elevated"
+            app:chipStrokeColor="@color/divider" />
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/callLogsList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:paddingBottom="32dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/filterGroup" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

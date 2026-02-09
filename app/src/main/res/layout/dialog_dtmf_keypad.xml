@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dtmf_keypad_title"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:columnCount="3">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf1"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="1"
+            android:text="@string/dtmf_digit_1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf2"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="2"
+            android:text="@string/dtmf_digit_2" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf3"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="3"
+            android:text="@string/dtmf_digit_3" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf4"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="4"
+            android:text="@string/dtmf_digit_4" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf5"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="5"
+            android:text="@string/dtmf_digit_5" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf6"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="6"
+            android:text="@string/dtmf_digit_6" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf7"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="7"
+            android:text="@string/dtmf_digit_7" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf8"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="8"
+            android:text="@string/dtmf_digit_8" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf9"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="9"
+            android:text="@string/dtmf_digit_9" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmfStar"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="*"
+            android:text="@string/dtmf_star" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmf0"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="0"
+            android:text="@string/dtmf_digit_0" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dtmfHash"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="6dp"
+            android:tag="#"
+            android:text="@string/dtmf_hash" />
+    </GridLayout>
+</LinearLayout>

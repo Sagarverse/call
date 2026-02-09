@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/dialer_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    tools:ignore="Overdraw">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/settingsButton"
+        style="@style/Widget.Material3.Button.IconButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:contentDescription="@string/settings"
+        app:icon="@android:drawable/ic_menu_preferences"
+        app:iconTint="@color/text_secondary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/dialer_input"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="60dp"
+        android:background="@null"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:hint="@string/dialer_hint"
+        android:importantForAutofill="no"
+        android:inputType="phone"
+        android:letterSpacing="0.05"
+        android:paddingHorizontal="48dp"
+        android:paddingVertical="16dp"
+        android:textColor="@color/text_primary"
+        android:textSize="44sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/backspace"
+        style="@style/Widget.Material3.Button.IconButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:alpha="0.6"
+        android:contentDescription="@string/backspace"
+        app:icon="@android:drawable/ic_input_delete"
+        app:iconTint="@color/text_secondary"
+        app:layout_constraintBottom_toBottomOf="@id/dialer_input"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintTop_toTopOf="@id/dialer_input" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/suggestionsList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toTopOf="@id/dialer_grid"
+        app:layout_constraintTop_toBottomOf="@id/dialer_input" />
+
+    <GridLayout
+        android:id="@+id/dialer_grid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="24dp"
+        android:layout_marginTop="8dp"
+        android:columnCount="3"
+        android:rowCount="4"
+        app:layout_constraintBottom_toTopOf="@id/callButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dialer_input">
+
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit2"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit3"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit4"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit5"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit6"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit7"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit8"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit9"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+
+        <include layout="@layout/view_dialer_button" android:id="@+id/digitStar"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digit0"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+        <include layout="@layout/view_dialer_button" android:id="@+id/digitHash"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_columnWeight="1" />
+
+    </GridLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/callButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="@string/call"
+        app:backgroundTint="@color/call_green"
+        app:elevation="0dp"
+        app:fabCustomSize="72dp"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:maxImageSize="32dp"
+        app:srcCompat="@android:drawable/sym_action_call"
+        app:tint="@color/white" />
+
+    <LinearLayout
+        android:id="@+id/bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:background="@color/bg_dark_elevated"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:id="@+id/callLogsButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="@string/call_logs_title"
+            android:textAllCaps="true"
+            android:letterSpacing="0.1"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/notesButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="Notes"
+            android:textAllCaps="true"
+            android:letterSpacing="0.1"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/callStatsButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="@string/call_stats_title"
+            android:textAllCaps="true"
+            android:letterSpacing="0.1"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
