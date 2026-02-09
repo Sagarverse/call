@@ -68,7 +68,7 @@ class CallLogActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.filteredLogs.collectLatest { logs ->
-                adapter.submitList(logs)
+                adapter.submitLogs(logs)
             }
         }
 
@@ -101,15 +101,16 @@ class CallLogActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
-                val log = adapter.currentList[position]
+                val item = adapter.currentList[position]
                 
-                if (direction == ItemTouchHelper.RIGHT) {
-                    startCall(log.phoneNumber)
-                } else {
-                    startMessage(log.phoneNumber)
+                if (item is CallLogAdapter.LogItem.Entry) {
+                    if (direction == ItemTouchHelper.RIGHT) {
+                        startCall(item.log.phoneNumber)
+                    } else {
+                        startMessage(item.log.phoneNumber)
+                    }
                 }
                 
-                // Reset the item view so it doesn't stay swiped
                 adapter.notifyItemChanged(position)
             }
 
@@ -122,15 +123,20 @@ class CallLogActivity : AppCompatActivity() {
                 actionState: Int,
                 isCurrentlyActive: Boolean
             ) {
+                if (viewHolder is CallLogAdapter.DividerViewHolder) {
+                    super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive)
+                    return
+                }
+
                 val itemView = viewHolder.itemView
                 val p = Paint()
                 
-                if (dX > 0) { // Swiping Right (Call)
-                    p.color = Color.parseColor("#30D158") // Call Green
+                if (dX > 0) { // Call
+                    p.color = Color.parseColor("#30D158")
                     val background = RectF(itemView.left.toFloat(), itemView.top.toFloat(), dX, itemView.bottom.toFloat())
                     c.drawRect(background, p)
-                } else if (dX < 0) { // Swiping Left (Message)
-                    p.color = Color.parseColor("#007AFF") // iOS Blue
+                } else if (dX < 0) { // Message
+                    p.color = Color.parseColor("#007AFF")
                     val background = RectF(itemView.right.toFloat() + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
                     c.drawRect(background, p)
                 }
@@ -143,22 +149,9 @@ class CallLogActivity : AppCompatActivity() {
     }
 
     private fun requestPermissionsIfNeeded() {
-        val callLogGranted = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.READ_CALL_LOG
-        ) == PackageManager.PERMISSION_GRANTED
-        val contactsGranted = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.READ_CONTACTS
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!callLogGranted || !contactsGranted) {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.READ_CALL_LOG,
-                    Manifest.permission.READ_CONTACTS
-                )
-            )
+        val callLogGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+        if (!callLogGranted) {
+            permissionLauncher.launch(arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS))
         } else {
             viewModel.syncFromSystem(contentResolver, true)
         }
@@ -168,27 +161,23 @@ class CallLogActivity : AppCompatActivity() {
         if (number.isBlank()) return
         val uri = Uri.fromParts("tel", number, null)
         val telecomManager = getSystemService(TelecomManager::class.java)
-        val extras = Bundle()
         try {
-            telecomManager.placeCall(uri, extras)
+            telecomManager.placeCall(uri, Bundle())
         } catch (_: SecurityException) {
-            val intent = Intent(Intent.ACTION_DIAL, uri)
-            startActivity(intent)
+            startActivity(Intent(Intent.ACTION_DIAL, uri))
         }
     }
 
     private fun startMessage(number: String) {
         if (number.isBlank()) return
-        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))
-        startActivity(intent)
+        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number")))
     }
 
     private fun openOrCreateContact(number: String) {
         if (number.isBlank()) return
         val contactUri = ContactLookup.findContactUri(this, number)
         if (contactUri != null) {
-            val intent = Intent(Intent.ACTION_VIEW, contactUri)
-            startActivity(intent)
+            startActivity(Intent(Intent.ACTION_VIEW, contactUri))
         } else {
             val intent = Intent(ContactsContract.Intents.Insert.ACTION).apply {
                 type = ContactsContract.RawContacts.CONTENT_TYPE

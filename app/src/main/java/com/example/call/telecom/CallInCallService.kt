@@ -24,8 +24,7 @@ class CallInCallService : InCallService() {
                 Call.STATE_RINGING -> showIncoming(call)
                 Call.STATE_ACTIVE -> showOngoing(call)
                 Call.STATE_DISCONNECTED -> {
-                    saveCallToLog(call)
-                    showSummary()
+                    handleCallEnd(call)
                 }
                 else -> showOngoing(call)
             }
@@ -45,10 +44,7 @@ class CallInCallService : InCallService() {
         
         when (call.state) {
             Call.STATE_RINGING -> showIncoming(call)
-            Call.STATE_DISCONNECTED -> {
-                saveCallToLog(call)
-                showSummary()
-            }
+            Call.STATE_DISCONNECTED -> handleCallEnd(call)
             else -> showOngoing(call)
         }
         OngoingCallService.start(this)
@@ -62,16 +58,15 @@ class CallInCallService : InCallService() {
         OngoingCallService.stop(this)
     }
 
-    override fun onDestroy() {
-        CallController.bindService(null)
-        super.onDestroy()
-    }
-
-    private fun saveCallToLog(call: Call) {
+    private fun handleCallEnd(call: Call) {
         serviceScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getInstance(applicationContext).callLogDao()
             val repository = CallLogRepository(dao)
-            repository.saveCallFromTelecom(call)
+            val logId = repository.saveCallFromTelecom(call)
+            
+            launch(Dispatchers.Main) {
+                showSummary(logId)
+            }
         }
     }
 
@@ -87,9 +82,11 @@ class CallInCallService : InCallService() {
         startActivity(intent)
     }
 
-    private fun showSummary() {
-        val intent = Intent(this, CallSummaryActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    private fun showSummary(logId: Long) {
+        val intent = Intent(this, CallSummaryActivity::class.java).apply {
+            putExtra("EXTRA_LOG_ID", logId)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
         startActivity(intent)
     }
 }

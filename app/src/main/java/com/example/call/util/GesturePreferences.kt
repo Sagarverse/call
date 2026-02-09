@@ -2,6 +2,7 @@ package com.example.call.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.appcompat.app.AppCompatDelegate
 
 object GesturePreferences {
     private const val PREFS_NAME = "gesture_prefs"
@@ -9,6 +10,7 @@ object GesturePreferences {
     private const val KEY_FLIP_TO_SILENCE = "flip_to_silence"
     private const val KEY_POWER_BUTTON_MUTES = "power_button_mutes"
     private const val KEY_VOLUME_SHORTCUTS = "volume_shortcuts"
+    private const val KEY_THEME_MODE = "theme_mode"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -44,5 +46,14 @@ object GesturePreferences {
 
     fun setVolumeShortcutsEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit().putBoolean(KEY_VOLUME_SHORTCUTS, enabled).apply()
+    }
+
+    fun getThemeMode(context: Context): Int {
+        return getPrefs(context).getInt(KEY_THEME_MODE, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+    }
+
+    fun setThemeMode(context: Context, mode: Int) {
+        getPrefs(context).edit().putInt(KEY_THEME_MODE, mode).apply()
+        AppCompatDelegate.setDefaultNightMode(mode)
     }
 }

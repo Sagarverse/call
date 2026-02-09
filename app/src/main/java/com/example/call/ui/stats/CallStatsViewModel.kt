@@ -8,6 +8,7 @@ import com.example.call.data.CallLogRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class CallStatsViewModel(private val repository: CallLogRepository) : ViewModel() {
     private val _summary = MutableStateFlow(StatsSummary())
@@ -19,19 +20,27 @@ class CallStatsViewModel(private val repository: CallLogRepository) : ViewModel(
                 val logs = repository.getAllNow()
                 _summary.value = computeSummary(logs)
             } catch (e: Exception) {
-                // Log the error or handle it as appropriate
                 _summary.value = StatsSummary()
             }
         }
     }
 
     private fun computeSummary(logs: List<CallLogEntity>): StatsSummary {
-        val now = System.currentTimeMillis()
-        val dayAgo = now - ONE_DAY_MILLIS
-        val weekAgo = now - ONE_WEEK_MILLIS
+        val calendar = Calendar.getInstance()
+        
+        // Reset to midnight for today
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val todayStart = calendar.timeInMillis
 
-        val dailyLogs = logs.filter { it.timestamp >= dayAgo }
-        val weeklyLogs = logs.filter { it.timestamp >= weekAgo }
+        // Reset to start of week (e.g., Monday)
+        calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+        val weekStart = calendar.timeInMillis
+
+        val dailyLogs = logs.filter { it.timestamp >= todayStart }
+        val weeklyLogs = logs.filter { it.timestamp >= weekStart }
 
         return StatsSummary(
             dailyCount = dailyLogs.size,
@@ -56,10 +65,5 @@ class CallStatsViewModel(private val repository: CallLogRepository) : ViewModel(
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
-    }
-
-    companion object {
-        private const val ONE_DAY_MILLIS = 24 * 60 * 60 * 1000L
-        private const val ONE_WEEK_MILLIS = 7 * 24 * 60 * 60 * 1000L
     }
 }

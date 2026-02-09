@@ -3,6 +3,8 @@ package com.example.call.ui.settings
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import com.example.call.R
 import com.example.call.databinding.ActivitySettingsBinding
 import com.example.call.ui.sim.SimManagementActivity
 import com.example.call.ui.permissions.PermissionsActivity
@@ -19,6 +21,7 @@ class SettingsActivity : AppCompatActivity() {
 
         setupButtons()
         setupSwitches()
+        setupThemeToggle()
     }
 
     private fun setupButtons() {
@@ -28,10 +31,6 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.simButton.setOnClickListener {
             startActivity(Intent(this, SimManagementActivity::class.java))
-        }
-
-        binding.notesButton.setOnClickListener {
-            startActivity(Intent(this, NoteActivity::class.java))
         }
 
         binding.backButton.setOnClickListener { finish() }
@@ -56,6 +55,26 @@ class SettingsActivity : AppCompatActivity() {
         binding.volumeShortcutsSwitch.isChecked = GesturePreferences.isVolumeShortcutsEnabled(this)
         binding.volumeShortcutsSwitch.setOnCheckedChangeListener { _, isChecked ->
             GesturePreferences.setVolumeShortcutsEnabled(this, isChecked)
+        }
+    }
+
+    private fun setupThemeToggle() {
+        val currentMode = GesturePreferences.getThemeMode(this)
+        when (currentMode) {
+            AppCompatDelegate.MODE_NIGHT_NO -> binding.themeToggleGroup.check(R.id.themeLight)
+            AppCompatDelegate.MODE_NIGHT_YES -> binding.themeToggleGroup.check(R.id.themeDark)
+            else -> binding.themeToggleGroup.check(R.id.themeSystem)
+        }
+
+        binding.themeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                val mode = when (checkedId) {
+                    R.id.themeLight -> AppCompatDelegate.MODE_NIGHT_NO
+                    R.id.themeDark -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+                GesturePreferences.setThemeMode(this, mode)
+            }
         }
     }
 }

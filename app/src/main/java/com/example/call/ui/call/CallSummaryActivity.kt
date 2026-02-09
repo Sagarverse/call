@@ -41,13 +41,21 @@ class CallSummaryActivity : AppCompatActivity() {
         binding.saveNote.setOnClickListener {
             val note = binding.noteInput.text?.toString()?.trim().orEmpty()
             viewModel.saveNoteAndTag(note.ifBlank { null }, selectedTag)
-            finish() // Acting as "Done"
+            finish()
         }
+
+        val specificLogId = intent.getLongExtra("EXTRA_LOG_ID", -1L)
 
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 viewModel.latest.collect { latest ->
-                    if (latest == null) {
+                    val displayLog = if (specificLogId != -1L) {
+                        // If we have a specific ID, try to find it, else fallback to latest
+                        // (Ideally ViewModel would handle finding by ID, but for now we fallback)
+                        latest
+                    } else latest
+
+                    if (displayLog == null) {
                         binding.callerNameSummary.text = getString(R.string.no_recent_call)
                         binding.callerNumberSummary.text = ""
                         binding.callTimeSummary.text = ""
@@ -55,15 +63,15 @@ class CallSummaryActivity : AppCompatActivity() {
                         return@collect
                     }
 
-                    val displayName = latest.displayName ?: latest.phoneNumber
+                    val displayName = displayLog.displayName ?: displayLog.phoneNumber
                     binding.callerNameSummary.text = displayName
-                    binding.callerNumberSummary.text = latest.phoneNumber
+                    binding.callerNumberSummary.text = displayLog.phoneNumber
                     binding.callTimeSummary.text = DateFormat.getDateTimeInstance()
-                        .format(Date(latest.timestamp))
-                    binding.noteInput.setText(latest.note ?: "")
+                        .format(Date(displayLog.timestamp))
+                    binding.noteInput.setText(displayLog.note ?: "")
                     binding.saveNote.isEnabled = true
-                    selectedTag = latest.tag
-                    selectChipByTag(latest.tag)
+                    selectedTag = displayLog.tag
+                    selectChipByTag(displayLog.tag)
                 }
             }
         }
@@ -71,7 +79,12 @@ class CallSummaryActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.loadLatest()
+        val specificLogId = intent.getLongExtra("EXTRA_LOG_ID", -1L)
+        if (specificLogId != -1L) {
+            viewModel.loadById(specificLogId)
+        } else {
+            viewModel.loadLatest()
+        }
     }
 
     private fun setupTagChips() {

@@ -2,6 +2,8 @@ package com.example.call.ui.logs
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.view.View
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -12,34 +14,90 @@ import com.example.call.R
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Calendar
 
 class CallLogAdapter(
     private val onCallClick: (CallLogEntity) -> Unit,
     private val onContactClick: (CallLogEntity) -> Unit
-) : ListAdapter<CallLogEntity, CallLogAdapter.LogViewHolder>(DIFF_CALLBACK) {
+) : ListAdapter<CallLogAdapter.LogItem, RecyclerView.ViewHolder>(DIFF_CALLBACK) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): LogViewHolder {
-        val binding = ItemCallLogBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
-        return LogViewHolder(binding, onCallClick, onContactClick)
+    sealed class LogItem {
+        data class Divider(val date: String) : LogItem()
+        data class Entry(val log: CallLogEntity) : LogItem()
     }
 
-    override fun onBindViewHolder(holder: LogViewHolder, position: Int) {
-        holder.bind(getItem(position))
+    override fun getItemViewType(position: Int): Int {
+        return when (getItem(position)) {
+            is LogItem.Divider -> TYPE_DIVIDER
+            is LogItem.Entry -> TYPE_ENTRY
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            TYPE_DIVIDER -> {
+                val view = inflater.inflate(R.layout.item_call_log_divider, parent, false)
+                DividerViewHolder(view)
+            }
+            else -> {
+                val binding = ItemCallLogBinding.inflate(inflater, parent, false)
+                LogViewHolder(binding, onCallClick, onContactClick)
+            }
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val item = getItem(position)
+        if (holder is DividerViewHolder && item is LogItem.Divider) {
+            holder.bind(item.date)
+        } else if (holder is LogViewHolder && item is LogItem.Entry) {
+            holder.bind(item.log)
+        }
+    }
+
+    fun submitLogs(logs: List<CallLogEntity>) {
+        val items = mutableListOf<LogItem>()
+        var lastDate = ""
+        val today = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+        val yesterday = getYesterdayDateString()
+
+        logs.forEach { log ->
+            val date = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(log.timestamp))
+            if (date != lastDate) {
+                val label = when (date) {
+                    today -> "Today"
+                    yesterday -> "Yesterday"
+                    else -> SimpleDateFormat("MMMM d", Locale.getDefault()).format(Date(log.timestamp))
+                }
+                items.add(LogItem.Divider(label))
+                lastDate = date
+            }
+            items.add(LogItem.Entry(log))
+        }
+        submitList(items)
+    }
+
+    private fun getYesterdayDateString(): String {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DATE, -1)
+        return SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(cal.time)
+    }
+
+    class DividerViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val textView = view.findViewById<TextView>(R.id.dividerText)
+        fun bind(date: String) {
+            textView.text = date
+        }
     }
 
     class LogViewHolder(
         private val binding: ItemCallLogBinding,
         private val onCallClick: (CallLogEntity) -> Unit,
         private val onContactClick: (CallLogEntity) -> Unit
-    ) :
-        RecyclerView.ViewHolder(binding.root) {
+    ) : RecyclerView.ViewHolder(binding.root) {
         
         private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        private val dateFormat = SimpleDateFormat("MMM d", Locale.getDefault())
 
         fun bind(item: CallLogEntity) {
             val context = binding.root.context
@@ -51,10 +109,7 @@ class CallLogAdapter(
             
             binding.callerName.text = item.displayName ?: fallbackName
             binding.callerNumber.text = item.phoneNumber
-            
-            val date = Date(item.timestamp)
-            val isToday = android.text.format.DateUtils.isToday(item.timestamp)
-            binding.callTime.text = if (isToday) timeFormat.format(date) else dateFormat.format(date)
+            binding.callTime.text = timeFormat.format(Date(item.timestamp))
 
             val iconRes = when (item.direction.lowercase(Locale.ROOT)) {
                 "incoming" -> android.R.drawable.sym_call_incoming
@@ -79,12 +134,19 @@ class CallLogAdapter(
     }
 
     companion object {
-        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<CallLogEntity>() {
-            override fun areItemsTheSame(oldItem: CallLogEntity, newItem: CallLogEntity): Boolean {
-                return oldItem.id == newItem.id
+        private const val TYPE_DIVIDER = 0
+        private const val TYPE_ENTRY = 1
+
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<LogItem>() {
+            override fun areItemsTheSame(oldItem: LogItem, newItem: LogItem): Boolean {
+                return if (oldItem is LogItem.Entry && newItem is LogItem.Entry) {
+                    oldItem.log.id == newItem.log.id
+                } else if (oldItem is LogItem.Divider && newItem is LogItem.Divider) {
+                    oldItem.date == newItem.date
+                } else false
             }
 
-            override fun areContentsTheSame(oldItem: CallLogEntity, newItem: CallLogEntity): Boolean {
+            override fun areContentsTheSame(oldItem: LogItem, newItem: LogItem): Boolean {
                 return oldItem == newItem
             }
         }

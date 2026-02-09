@@ -1,14 +1,20 @@
 package com.example.call.ui.call
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.view.MotionEvent
@@ -31,13 +37,17 @@ import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class OngoingCallActivity : AppCompatActivity() {
+class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var binding: ActivityOngoingCallBinding
     private var isOnHold = false
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
     private var dtmfDialog: AlertDialog? = null
     
+    private lateinit var sensorManager: SensorManager
+    private var proximitySensor: Sensor? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+
     private val handler = Handler(Looper.getMainLooper())
     private val timerRunnable = object : Runnable {
         override fun run() {
@@ -53,10 +63,34 @@ class OngoingCallActivity : AppCompatActivity() {
 
         setupControls()
         observeAudioState()
+        observeCallState()
+        setupProximitySensor()
         
         binding.endCall.setOnClickListener {
             CallController.disconnect()
             finish()
+        }
+    }
+
+    private fun setupProximitySensor() {
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
+        
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (powerManager.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
+                wakeLock = powerManager.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "CallApp:ProximityLock")
+            }
+        }
+    }
+
+    private fun observeCallState() {
+        lifecycleScope.launch {
+            CallController.currentCallFlow.collectLatest { call ->
+                if (call == null) {
+                    finish()
+                }
+            }
         }
     }
 
@@ -262,6 +296,17 @@ class OngoingCallActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        proximitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
+        if (wakeLock?.isHeld == true) wakeLock?.release()
+    }
+
     override fun onStart() {
         super.onStart()
         bindCallerInfo()
@@ -311,4 +356,16 @@ class OngoingCallActivity : AppCompatActivity() {
             String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
         }
     }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type == Sensor.TYPE_PROXIMITY) {
+            if (event.values[0] < (proximitySensor?.maximumRange ?: 1f)) {
+                if (wakeLock?.isHeld == false) wakeLock?.acquire()
+            } else {
+                if (wakeLock?.isHeld == true) wakeLock?.release()
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 }

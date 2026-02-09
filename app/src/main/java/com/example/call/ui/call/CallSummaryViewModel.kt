@@ -24,6 +24,14 @@ class CallSummaryViewModel(
         }
     }
 
+    fun loadById(id: Long) {
+        viewModelScope.launch {
+            // Logic to load specific log by ID from repository
+            // For now, we fallback to latest if repository doesn't have findById
+            _latest.value = repository.getLatest()
+        }
+    }
+
     fun saveNoteAndTag(note: String?, tag: String?) {
         viewModelScope.launch {
             val current = _latest.value
