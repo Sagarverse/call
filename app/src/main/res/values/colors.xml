@@ -31,4 +31,14 @@
     <!-- Gradients -->
     <color name="grad_start">#4D000000</color>
     <color name="grad_end">#000000</color>
+
+    <!-- Missing colors for cards and blobs -->
+    <color name="card_purple">#BB86FC</color>
+    <color name="card_blue">#3700B3</color>
+    <color name="card_pink">#FF4081</color>
+    <color name="card_orange">#FF9800</color>
+    <color name="card_violet">#9C27B0</color>
+    <color name="blob_pink">#FF80AB</color>
+    <color name="blob_purple">#D1C4E9</color>
+    <color name="blob_blue">#82B1FF</color>
 </resources>
