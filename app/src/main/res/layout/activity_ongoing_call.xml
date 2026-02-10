@@ -15,9 +15,10 @@
         android:contentDescription="@null" />
 
     <View
+        android:id="@+id/callThemeOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/bg_call_gradient" />
+        android:background="@drawable/bg_call_theme_default" />
 
     <TextView
         android:id="@+id/callStatus"
@@ -82,11 +83,27 @@
             layout="@layout/view_call_control" />
 
         <include
+            android:id="@+id/volumeDown"
+            layout="@layout/view_call_control" />
+
+        <include
+            android:id="@+id/volumeUp"
+            layout="@layout/view_call_control" />
+
+        <include
             android:id="@+id/addCall"
             layout="@layout/view_call_control" />
 
         <include
             android:id="@+id/hold"
+            layout="@layout/view_call_control" />
+
+        <include
+            android:id="@+id/merge"
+            layout="@layout/view_call_control" />
+
+        <include
+            android:id="@+id/swap"
             layout="@layout/view_call_control" />
 
         <include

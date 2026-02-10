@@ -1,10 +1,14 @@
 package com.example.call.ui.stats
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.call.R
 import com.example.call.data.AppDatabase
 import com.example.call.data.CallLogRepository
@@ -14,6 +18,19 @@ import kotlinx.coroutines.launch
 class CallStatsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCallStatsBinding
     private lateinit var viewModel: CallStatsViewModel
+    private lateinit var repository: CallLogRepository
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        val hasCallLog = result[Manifest.permission.READ_CALL_LOG] == true
+        val hasContacts = result[Manifest.permission.READ_CONTACTS] == true
+        if (hasCallLog) {
+            syncAndLoad(hasContacts)
+        } else {
+            viewModel.loadStats()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,7 +38,7 @@ class CallStatsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val dao = AppDatabase.getInstance(this).callLogDao()
-        val repository = CallLogRepository(dao)
+        repository = CallLogRepository(dao)
         viewModel = ViewModelProvider(
             this,
             CallStatsViewModel.Factory(repository)
@@ -48,6 +65,16 @@ class CallStatsActivity : AppCompatActivity() {
                         R.string.stats_duration_format,
                         formatDuration(summary.weeklyDurationSeconds)
                     )
+                    binding.topContactsValue.text = if (summary.topContactsText.isBlank()) {
+                        getString(R.string.stats_no_data)
+                    } else {
+                        summary.topContactsText
+                    }
+                    binding.peakHoursValue.text = if (summary.peakHoursText.isBlank()) {
+                        getString(R.string.stats_no_data)
+                    } else {
+                        summary.peakHoursText
+                    }
                 }
             }
         }
@@ -55,7 +82,33 @@ class CallStatsActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.loadStats()
+        requestPermissionsIfNeeded()
+    }
+
+    private fun requestPermissionsIfNeeded() {
+        val callLogGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_CALL_LOG
+        ) == PackageManager.PERMISSION_GRANTED
+        val contactsGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (callLogGranted) {
+            syncAndLoad(contactsGranted)
+        } else {
+            permissionLauncher.launch(
+                arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)
+            )
+        }
+    }
+
+    private fun syncAndLoad(canReadContacts: Boolean) {
+        lifecycleScope.launch {
+            repository.syncFromSystem(contentResolver, canReadContacts)
+            viewModel.loadStats()
+        }
     }
 
     private fun formatDuration(totalSeconds: Long): String {

@@ -32,10 +32,13 @@ import androidx.recyclerview.widget.RecyclerView
 class CallLogActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCallLogBinding
     private lateinit var viewModel: CallLogViewModel
+    private lateinit var repository: CallLogRepository
     private val adapter = CallLogAdapter(
         onCallClick = { log -> startCall(log.phoneNumber) },
-        onContactClick = { log -> openOrCreateContact(log.phoneNumber) }
+        onContactClick = { log -> openOrCreateContact(log.phoneNumber) },
+        onTagLongPress = { log -> showTagOptions(log) }
     )
+    private var timelineMode = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -56,7 +59,7 @@ class CallLogActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val dao = AppDatabase.getInstance(this).callLogDao()
-        val repository = CallLogRepository(dao)
+        repository = CallLogRepository(dao)
         viewModel = ViewModelProvider(
             this,
             CallLogViewModel.Factory(repository)
@@ -65,6 +68,7 @@ class CallLogActivity : AppCompatActivity() {
         binding.callLogsList.layoutManager = LinearLayoutManager(this)
         binding.callLogsList.adapter = adapter
         setupSwipeGestures()
+        setupTimelineToggle()
 
         lifecycleScope.launch {
             viewModel.filteredLogs.collectLatest { logs ->
@@ -86,9 +90,38 @@ class CallLogActivity : AppCompatActivity() {
             viewModel.updateFilter(filterValue)
         }
 
+        binding.tagFilterGroup.setOnCheckedStateChangeListener { _, checkedIds ->
+            val filterValue = when (checkedIds.firstOrNull()) {
+                R.id.tag_filter_work -> CallLogViewModel.TagFilter.WORK
+                R.id.tag_filter_personal -> CallLogViewModel.TagFilter.PERSONAL
+                R.id.tag_filter_spam -> CallLogViewModel.TagFilter.SPAM
+                R.id.tag_filter_none -> CallLogViewModel.TagFilter.NONE
+                else -> CallLogViewModel.TagFilter.ALL
+            }
+            viewModel.updateTagFilter(filterValue)
+        }
+
         requestPermissionsIfNeeded()
 
         binding.backButton.setOnClickListener { finish() }
+    }
+
+    private fun setupTimelineToggle() {
+        updateTimelineToggleUi()
+        binding.timelineToggle.setOnClickListener {
+            timelineMode = !timelineMode
+            adapter.setTimelineMode(timelineMode)
+            updateTimelineToggleUi()
+        }
+    }
+
+    private fun updateTimelineToggleUi() {
+        val tint = if (timelineMode) {
+            ContextCompat.getColor(this, R.color.call_green)
+        } else {
+            ContextCompat.getColor(this, R.color.text_secondary)
+        }
+        binding.timelineToggle.iconTint = android.content.res.ColorStateList.valueOf(tint)
     }
 
     private fun setupSwipeGestures() {
@@ -101,6 +134,9 @@ class CallLogActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
+                if (position == RecyclerView.NO_POSITION || position >= adapter.currentList.size) {
+                    return
+                }
                 val item = adapter.currentList[position]
                 
                 if (item is CallLogAdapter.LogItem.Entry) {
@@ -150,10 +186,11 @@ class CallLogActivity : AppCompatActivity() {
 
     private fun requestPermissionsIfNeeded() {
         val callLogGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+        val contactsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         if (!callLogGranted) {
             permissionLauncher.launch(arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS))
         } else {
-            viewModel.syncFromSystem(contentResolver, true)
+            viewModel.syncFromSystem(contentResolver, contactsGranted)
         }
     }
 
@@ -185,5 +222,28 @@ class CallLogActivity : AppCompatActivity() {
             }
             startActivity(intent)
         }
+    }
+
+    private fun showTagOptions(log: com.example.call.data.CallLogEntity) {
+        val options = arrayOf(
+            getString(R.string.tag_work),
+            getString(R.string.tag_personal),
+            getString(R.string.tag_spam),
+            getString(R.string.tag_none)
+        )
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.tag_filter))
+            .setItems(options) { _, which ->
+                val tag = when (which) {
+                    0 -> CallLogTags.WORK
+                    1 -> CallLogTags.PERSONAL
+                    2 -> CallLogTags.SPAM
+                    else -> null
+                }
+                lifecycleScope.launch {
+                    repository.updateNoteTag(log.id, log.note, tag)
+                }
+            }
+            .show()
     }
 }

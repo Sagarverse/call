@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 object CallController {
+    private val _calls = MutableStateFlow<List<Call>>(emptyList())
+    val calls: StateFlow<List<Call>> = _calls
+
     private val _currentCallFlow = MutableStateFlow<Call?>(null)
     val currentCallFlow: StateFlow<Call?> = _currentCallFlow
 
@@ -27,12 +30,72 @@ object CallController {
         currentCall = call
     }
 
+    fun addCall(call: Call) {
+        _calls.value = (_calls.value + call).distinct()
+        updateCurrentCall()
+    }
+
+    fun removeCall(call: Call) {
+        _calls.value = _calls.value.filter { it != call }
+        updateCurrentCall()
+    }
+
+    fun onCallStateChanged(call: Call) {
+        if (_calls.value.contains(call)) {
+            updateCurrentCall()
+        }
+    }
+
     fun bindService(service: CallInCallService?) {
         inCallService = service
     }
 
     fun updateAudioState(state: CallAudioState) {
         _audioState.value = state
+    }
+
+    fun getPrimaryCall(): Call? = currentCall
+
+    fun getActiveCall(): Call? = _calls.value.firstOrNull { it.state == Call.STATE_ACTIVE }
+
+    fun getHoldingCall(): Call? = _calls.value.firstOrNull { it.state == Call.STATE_HOLDING }
+
+    fun canSwap(): Boolean = getActiveCall() != null && getHoldingCall() != null
+
+    fun swapCalls() {
+        val active = getActiveCall()
+        val holding = getHoldingCall()
+        if (active != null && holding != null) {
+            active.hold()
+            holding.unhold()
+            updateCurrentCall()
+        }
+    }
+
+    fun canMerge(): Boolean {
+        val active = getActiveCall()
+        val holding = getHoldingCall()
+        if (active == null || holding == null) return false
+        val activeCanMerge = ((active.details?.callCapabilities ?: 0) and
+            Call.Details.CAPABILITY_MERGE_CONFERENCE) != 0
+        val holdingCanMerge = ((holding.details?.callCapabilities ?: 0) and
+            Call.Details.CAPABILITY_MERGE_CONFERENCE) != 0
+        val conferenceable = active.conferenceableCalls.contains(holding) || holding.conferenceableCalls.contains(active)
+        return activeCanMerge || holdingCanMerge || conferenceable
+    }
+
+    fun mergeCalls() {
+        val active = getActiveCall()
+        val holding = getHoldingCall()
+        if (active == null || holding == null) return
+        if (active.conferenceableCalls.contains(holding)) {
+            active.conference(holding)
+        } else if (holding.conferenceableCalls.contains(active)) {
+            holding.conference(active)
+        } else {
+            active.conference(holding)
+        }
+        updateCurrentCall()
     }
 
     fun accept() {
@@ -60,11 +123,25 @@ object CallController {
         inCallService?.setAudioRoute(route)
     }
 
+    fun setAudioRoute(route: Int) {
+        inCallService?.setAudioRoute(route)
+    }
+
     fun playDtmf(tone: Char) {
         currentCall?.playDtmfTone(tone)
     }
 
     fun stopDtmf() {
         currentCall?.stopDtmfTone()
+    }
+
+    private fun updateCurrentCall() {
+        val calls = _calls.value
+        val active = calls.firstOrNull { it.state == Call.STATE_ACTIVE }
+        val dialing = calls.firstOrNull {
+            it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING
+        }
+        val holding = calls.firstOrNull { it.state == Call.STATE_HOLDING }
+        currentCall = active ?: dialing ?: holding ?: calls.firstOrNull()
     }
 }

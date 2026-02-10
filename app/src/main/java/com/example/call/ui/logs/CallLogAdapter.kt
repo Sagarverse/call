@@ -1,8 +1,8 @@
 package com.example.call.ui.logs
 
 import android.view.LayoutInflater
-import android.view.ViewGroup
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import android.util.TypedValue
 import androidx.core.content.ContextCompat
@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.call.data.CallLogEntity
 import com.example.call.databinding.ItemCallLogBinding
+import com.example.call.databinding.ItemCallLogTimelineBinding
 import com.example.call.R
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -19,8 +20,11 @@ import java.util.Calendar
 
 class CallLogAdapter(
     private val onCallClick: (CallLogEntity) -> Unit,
-    private val onContactClick: (CallLogEntity) -> Unit
+    private val onContactClick: (CallLogEntity) -> Unit,
+    private val onTagLongPress: (CallLogEntity) -> Unit
 ) : ListAdapter<CallLogAdapter.LogItem, RecyclerView.ViewHolder>(DIFF_CALLBACK) {
+
+    private var timelineMode: Boolean = false
 
     sealed class LogItem {
         data class Divider(val date: String) : LogItem()
@@ -42,8 +46,13 @@ class CallLogAdapter(
                 DividerViewHolder(view)
             }
             else -> {
-                val binding = ItemCallLogBinding.inflate(inflater, parent, false)
-                LogViewHolder(binding, onCallClick, onContactClick)
+                if (timelineMode) {
+                    val binding = ItemCallLogTimelineBinding.inflate(inflater, parent, false)
+                    TimelineLogViewHolder(binding, onCallClick, onContactClick)
+                } else {
+                    val binding = ItemCallLogBinding.inflate(inflater, parent, false)
+                    LogViewHolder(binding, onCallClick, onContactClick)
+                }
             }
         }
     }
@@ -54,7 +63,15 @@ class CallLogAdapter(
             holder.bind(item.date)
         } else if (holder is LogViewHolder && item is LogItem.Entry) {
             holder.bind(item.log)
+        } else if (holder is TimelineLogViewHolder && item is LogItem.Entry) {
+            holder.bind(item.log)
         }
+    }
+
+    fun setTimelineMode(enabled: Boolean) {
+        if (timelineMode == enabled) return
+        timelineMode = enabled
+        notifyDataSetChanged()
     }
 
     fun submitLogs(logs: List<CallLogEntity>) {
@@ -92,7 +109,7 @@ class CallLogAdapter(
         }
     }
 
-    class LogViewHolder(
+    inner class LogViewHolder(
         private val binding: ItemCallLogBinding,
         private val onCallClick: (CallLogEntity) -> Unit,
         private val onContactClick: (CallLogEntity) -> Unit
@@ -101,39 +118,47 @@ class CallLogAdapter(
         private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
         fun bind(item: CallLogEntity) {
-            val context = binding.root.context
-            val fallbackName = if (item.phoneNumber.isBlank()) {
-                context.getString(R.string.unknown_caller)
-            } else {
-                item.phoneNumber
-            }
-            
-            binding.callerName.text = item.displayName ?: fallbackName
-            binding.callerNumber.text = item.phoneNumber
-            binding.callTime.text = timeFormat.format(Date(item.timestamp))
+            bindCommon(
+                context = binding.root.context,
+                rowRoot = binding.root,
+                avatarContainer = binding.avatarContainer,
+                callerName = binding.callerName,
+                callerNumber = binding.callerNumber,
+                tagLabel = binding.tagLabel,
+                callTime = binding.callTime,
+                callDirection = binding.callDirection,
+                item = item,
+                onCallClick = onCallClick,
+                onContactClick = onContactClick,
+                onTagLongPress = onTagLongPress
+            )
+        }
+    }
 
-            val iconRes = when (item.direction.lowercase(Locale.ROOT)) {
-                "incoming" -> android.R.drawable.sym_call_incoming
-                "outgoing" -> android.R.drawable.sym_call_outgoing
-                "missed" -> android.R.drawable.sym_call_missed
-                else -> android.R.drawable.sym_call_incoming
-            }
-            binding.callDirection.setImageResource(iconRes)
-            
-            if (item.direction.lowercase(Locale.ROOT) == "missed") {
-                binding.callerName.setTextColor(ContextCompat.getColor(context, R.color.call_red))
-            } else {
-                // Safely resolve text color
-                val typedValue = TypedValue()
-                context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
-                binding.callerName.setTextColor(typedValue.data)
-            }
+    inner class TimelineLogViewHolder(
+        private val binding: ItemCallLogTimelineBinding,
+        private val onCallClick: (CallLogEntity) -> Unit,
+        private val onContactClick: (CallLogEntity) -> Unit
+    ) : RecyclerView.ViewHolder(binding.root) {
 
-            binding.root.setOnClickListener { onCallClick(item) }
-            binding.root.setOnLongClickListener {
-                onContactClick(item)
-                true
-            }
+        private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        fun bind(item: CallLogEntity) {
+            bindCommon(
+                context = binding.root.context,
+                rowRoot = binding.root,
+                avatarContainer = binding.avatarContainer,
+                callerName = binding.callerName,
+                callerNumber = binding.callerNumber,
+                tagLabel = binding.tagLabel,
+                callTime = binding.callTime,
+                callDirection = binding.callDirection,
+                item = item,
+                onCallClick = onCallClick,
+                onContactClick = onContactClick,
+                onTagLongPress = onTagLongPress,
+                timeFormat = timeFormat
+            )
         }
     }
 
@@ -154,5 +179,62 @@ class CallLogAdapter(
                 return oldItem == newItem
             }
         }
+    }
+
+    private fun bindCommon(
+        context: android.content.Context,
+        rowRoot: android.view.View,
+        avatarContainer: android.view.View,
+        callerName: TextView,
+        callerNumber: TextView,
+        tagLabel: TextView,
+        callTime: TextView,
+        callDirection: android.widget.ImageView,
+        item: CallLogEntity,
+        onCallClick: (CallLogEntity) -> Unit,
+        onContactClick: (CallLogEntity) -> Unit,
+        onTagLongPress: (CallLogEntity) -> Unit,
+        timeFormat: SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    ) {
+        val fallbackName = if (item.phoneNumber.isBlank()) {
+            context.getString(R.string.unknown_caller)
+        } else {
+            item.phoneNumber
+        }
+
+        callerName.text = item.displayName ?: fallbackName
+        callerNumber.text = item.phoneNumber
+        callTime.text = timeFormat.format(Date(item.timestamp))
+        val tagText = CallLogTags.label(context, item.tag)
+        if (tagText.isNullOrBlank()) {
+            tagLabel.text = ""
+            tagLabel.visibility = android.view.View.GONE
+        } else {
+            tagLabel.text = tagText
+            tagLabel.visibility = android.view.View.VISIBLE
+        }
+
+        val iconRes = when (item.direction.lowercase(Locale.ROOT)) {
+            "incoming" -> android.R.drawable.sym_call_incoming
+            "outgoing" -> android.R.drawable.sym_call_outgoing
+            "missed" -> android.R.drawable.sym_call_missed
+            else -> android.R.drawable.sym_call_incoming
+        }
+        callDirection.setImageResource(iconRes)
+
+        if (item.direction.lowercase(Locale.ROOT) == "missed") {
+            callerName.setTextColor(ContextCompat.getColor(context, R.color.call_red))
+        } else {
+            val typedValue = TypedValue()
+            context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
+            callerName.setTextColor(typedValue.data)
+        }
+
+        rowRoot.setOnClickListener { onCallClick(item) }
+        rowRoot.setOnLongClickListener {
+            onTagLongPress(item)
+            true
+        }
+        avatarContainer.setOnClickListener { onContactClick(item) }
     }
 }

@@ -61,6 +61,13 @@ class CallLogRepository(private val dao: CallLogDao) {
         canReadContacts: Boolean
     ) {
         withContext(Dispatchers.IO) {
+            val existingLogs = dao.getAllNow()
+            val existingBySystemId = existingLogs
+                .filter { it.systemId != null }
+                .associateBy { it.systemId!! }
+            val existingByKey = existingLogs
+                .associateBy { "${it.phoneNumber}|${it.timestamp}" }
+
             val projection = arrayOf(
                 CallLog.Calls._ID,
                 CallLog.Calls.NUMBER,
@@ -95,10 +102,13 @@ class CallLogRepository(private val dao: CallLogDao) {
                         val durationSeconds = cursor.getLong(durationIndex)
 
                         val displayName = if (canReadContacts) {
-                            lookupContactName(contentResolver, number)
+                            lookupContactName(contentResolver, number) ?: cachedName
                         } else {
                             cachedName
                         }
+
+                        val existing = existingBySystemId[systemId]
+                            ?: existingByKey["$number|$timestamp"]
 
                         results.add(
                             CallLogEntity(
@@ -108,8 +118,8 @@ class CallLogRepository(private val dao: CallLogDao) {
                                 direction = direction,
                                 timestamp = timestamp,
                                 durationSeconds = durationSeconds,
-                                note = null,
-                                tag = null
+                                note = existing?.note,
+                                tag = existing?.tag
                             )
                         )
                     }

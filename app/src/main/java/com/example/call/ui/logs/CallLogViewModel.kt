@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 class CallLogViewModel(private val repository: CallLogRepository) : ViewModel() {
     private val query = MutableStateFlow("")
     private val filter = MutableStateFlow(Filter.ALL)
+    private val tagFilter = MutableStateFlow(TagFilter.ALL)
 
     private val callLogs: StateFlow<List<CallLogEntity>> = repository.observeLogs()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -22,11 +23,14 @@ class CallLogViewModel(private val repository: CallLogRepository) : ViewModel() 
     val filteredLogs: StateFlow<List<CallLogEntity>> = combine(
         callLogs,
         query,
-        filter
-    ) { logs, queryValue, filterValue ->
+        filter,
+        tagFilter
+    ) { logs, queryValue, filterValue, tagFilterValue ->
         val normalizedQuery = queryValue.trim().lowercase()
         logs.filter { log ->
-            matchesFilter(log, filterValue) && matchesQuery(log, normalizedQuery)
+            matchesFilter(log, filterValue) &&
+                matchesTag(log, tagFilterValue) &&
+                matchesQuery(log, normalizedQuery)
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
@@ -46,6 +50,10 @@ class CallLogViewModel(private val repository: CallLogRepository) : ViewModel() 
 
     fun updateFilter(value: Filter) {
         filter.value = value
+    }
+
+    fun updateTagFilter(value: TagFilter) {
+        tagFilter.value = value
     }
 
     private fun matchesFilter(log: CallLogEntity, value: Filter): Boolean {
@@ -69,11 +77,30 @@ class CallLogViewModel(private val repository: CallLogRepository) : ViewModel() 
             tag.contains(value)
     }
 
+    private fun matchesTag(log: CallLogEntity, value: TagFilter): Boolean {
+        val normalizedTag = CallLogTags.normalize(log.tag)
+        return when (value) {
+            TagFilter.ALL -> true
+            TagFilter.WORK -> normalizedTag == CallLogTags.WORK
+            TagFilter.PERSONAL -> normalizedTag == CallLogTags.PERSONAL
+            TagFilter.SPAM -> normalizedTag == CallLogTags.SPAM
+            TagFilter.NONE -> normalizedTag == null
+        }
+    }
+
     enum class Filter {
         ALL,
         MISSED,
         INCOMING,
         OUTGOING
+    }
+
+    enum class TagFilter {
+        ALL,
+        WORK,
+        PERSONAL,
+        SPAM,
+        NONE
     }
 
     class Factory(private val repository: CallLogRepository) : ViewModelProvider.Factory {

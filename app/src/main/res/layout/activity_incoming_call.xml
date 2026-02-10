@@ -16,9 +16,10 @@
         android:contentDescription="@null" />
 
     <View
+        android:id="@+id/callThemeOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/bg_call_gradient" />
+        android:background="@drawable/bg_call_theme_default" />
 
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/callerAvatar"

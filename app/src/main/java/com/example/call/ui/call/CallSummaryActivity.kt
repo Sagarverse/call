@@ -12,6 +12,7 @@ import com.example.call.data.AppDatabase
 import com.example.call.data.CallLogRepository
 import com.example.call.data.NoteRepository
 import com.example.call.databinding.ActivityCallSummaryBinding
+import com.example.call.util.CallReminderScheduler
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -21,6 +22,7 @@ class CallSummaryActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCallSummaryBinding
     private lateinit var viewModel: CallSummaryViewModel
     private var selectedTag: String? = null
+    private var currentLog: com.example.call.data.CallLogEntity? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +46,10 @@ class CallSummaryActivity : AppCompatActivity() {
             finish()
         }
 
+        binding.remindMe.setOnClickListener {
+            showReminderOptions()
+        }
+
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 viewModel.latest.collect { displayLog ->
@@ -52,9 +58,11 @@ class CallSummaryActivity : AppCompatActivity() {
                         binding.callerNumberSummary.text = ""
                         binding.callTimeSummary.text = ""
                         binding.saveNote.isEnabled = false
+                        binding.remindMe.isEnabled = false
                         return@collect
                     }
 
+                    currentLog = displayLog
                     val displayName = displayLog.displayName ?: displayLog.phoneNumber
                     binding.callerNameSummary.text = displayName
                     binding.callerNumberSummary.text = displayLog.phoneNumber
@@ -62,11 +70,38 @@ class CallSummaryActivity : AppCompatActivity() {
                         .format(Date(displayLog.timestamp))
                     binding.noteInput.setText(displayLog.note ?: "")
                     binding.saveNote.isEnabled = true
+                    binding.remindMe.isEnabled = true
                     selectedTag = displayLog.tag
                     selectChipByTag(displayLog.tag)
                 }
             }
         }
+    }
+
+    private fun showReminderOptions() {
+        val log = currentLog ?: return
+        val options = arrayOf(
+            getString(R.string.remind_in_15),
+            getString(R.string.remind_in_60),
+            getString(R.string.remind_in_1d)
+        )
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.remind_me))
+            .setItems(options) { _, which ->
+                val delayMillis = when (which) {
+                    0 -> 15 * 60 * 1000L
+                    1 -> 60 * 60 * 1000L
+                    else -> 24 * 60 * 60 * 1000L
+                }
+                val triggerAt = System.currentTimeMillis() + delayMillis
+                CallReminderScheduler.schedule(
+                    this,
+                    log.displayName,
+                    log.phoneNumber,
+                    triggerAt
+                )
+            }
+            .show()
     }
 
     override fun onStart() {

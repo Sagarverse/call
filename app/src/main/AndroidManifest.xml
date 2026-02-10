@@ -16,7 +16,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".CallApplication"
@@ -59,6 +63,12 @@
             android:name=".ui.stats.CallStatsActivity"
             android:exported="false"
             android:label="@string/call_stats_title"
+            android:theme="@style/Theme.Call" />
+
+        <activity
+            android:name=".ui.contacts.ContactActivity"
+            android:exported="false"
+            android:label="@string/contacts"
             android:theme="@style/Theme.Call" />
 
         <activity
@@ -121,6 +131,14 @@
             android:name=".telecom.OngoingCallService"
             android:exported="false"
             android:foregroundServiceType="phoneCall" />
+
+        <receiver
+            android:name=".util.MissedCallReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".util.CallReminderReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

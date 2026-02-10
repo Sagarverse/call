@@ -34,6 +34,19 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/addFavoriteButton"
+        style="@style/Widget.Material3.Button.IconButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:contentDescription="@string/add_favorite"
+        app:icon="@android:drawable/btn_star_big_on"
+        app:iconTint="@color/text_secondary"
+        app:layout_constraintEnd_toStartOf="@id/settingsButton"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <EditText
         android:id="@+id/dialer_input"
         android:layout_width="0dp"
@@ -191,6 +204,19 @@
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:text="@string/call_stats_title"
+            android:textAllCaps="true"
+            android:letterSpacing="0.1"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/voicemailButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="@string/voicemail"
             android:textAllCaps="true"
             android:letterSpacing="0.1"
             android:textColor="@color/text_secondary"

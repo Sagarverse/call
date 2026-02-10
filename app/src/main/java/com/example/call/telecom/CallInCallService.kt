@@ -9,6 +9,8 @@ import com.example.call.data.CallLogRepository
 import com.example.call.ui.call.CallSummaryActivity
 import com.example.call.ui.call.IncomingCallActivity
 import com.example.call.ui.call.OngoingCallActivity
+import com.example.call.util.MissedCallNotifier
+import com.example.call.util.CalendarEventHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +22,7 @@ class CallInCallService : InCallService() {
     private val callCallback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
             super.onStateChanged(call, state)
+            CallController.onCallStateChanged(call)
             when (state) {
                 Call.STATE_RINGING -> showIncoming(call)
                 Call.STATE_ACTIVE -> showOngoing(call)
@@ -39,7 +42,7 @@ class CallInCallService : InCallService() {
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         CallController.bindService(this)
-        CallController.updateCall(call)
+        CallController.addCall(call)
         call.registerCallback(callCallback)
         
         when (call.state) {
@@ -53,12 +56,39 @@ class CallInCallService : InCallService() {
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
         call.unregisterCallback(callCallback)
-        CallController.updateCall(null)
+        CallController.removeCall(call)
         CallController.bindService(null)
-        OngoingCallService.stop(this)
+        if (CallController.calls.value.isEmpty()) {
+            OngoingCallService.stop(this)
+        }
     }
 
     private fun handleCallEnd(call: Call) {
+        val details = call.details
+        val isMissed = details.callDirection == Call.Details.DIRECTION_INCOMING &&
+            details.connectTimeMillis == 0L
+        if (isMissed) {
+            val displayName = details.callerDisplayName?.toString()
+            val number = details.handle?.schemeSpecificPart.orEmpty()
+            if (number.isNotBlank()) {
+                MissedCallNotifier.showMissedCall(this, displayName, number)
+            }
+        }
+        val name = details.callerDisplayName?.toString()?.takeIf { it.isNotBlank() }
+        val number = details.handle?.schemeSpecificPart.orEmpty()
+        val start = if (details.connectTimeMillis > 0L) {
+            details.connectTimeMillis
+        } else {
+            details.creationTimeMillis
+        }
+        val end = System.currentTimeMillis().coerceAtLeast(start + 60_000L)
+        CalendarEventHelper.insertCallEvent(
+            this,
+            if (name != null) "Call with $name" else "Call with $number",
+            number,
+            start,
+            end
+        )
         serviceScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getInstance(applicationContext).callLogDao()
             val repository = CallLogRepository(dao)

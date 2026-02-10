@@ -16,20 +16,32 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.call.data.AppDatabase
 import com.example.call.data.CallLogRepository
 import com.example.call.databinding.ActivityDialerBinding
 import com.example.call.ui.dialer.DialerViewModel
+import com.example.call.ui.contacts.ContactActivity
+import com.example.call.ui.dialer.ContactSuggestionAdapter
+import com.example.call.ui.dialer.ContactSuggestion
 import com.example.call.ui.logs.CallLogActivity
 import com.example.call.ui.notes.NoteActivity
 import com.example.call.ui.settings.SettingsActivity
 import com.example.call.ui.stats.CallStatsActivity
 import com.example.call.util.GesturePreferences
+import com.example.call.util.AppSettings
+import com.example.call.util.FavoritesStore
 import com.example.call.util.RoleHelper
 import com.example.call.util.SimPreferences
+import com.example.call.ui.dialer.FavoriteAdapter
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
@@ -37,11 +49,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: DialerViewModel
     private lateinit var repository: CallLogRepository
     private lateinit var gestureDetector: GestureDetector
+    private lateinit var favoritesAdapter: FavoriteAdapter
+    private lateinit var contactAdapter: ContactSuggestionAdapter
+    private var contactSearchJob: Job? = null
 
     private var volumeUpPressCount = 0
     private var volumeDownPressCount = 0
     private var lastVolumeUpTime: Long = 0
     private var lastVolumeDownTime: Long = 0
+
+    companion object {
+        const val EXTRA_ADD_CALL = "com.example.call.EXTRA_ADD_CALL"
+    }
 
     private val roleRequestLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -59,6 +78,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val contactPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchContactPicker()
+        } else {
+            Toast.makeText(this, "Contacts permission needed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val contactPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val uri = result.data?.data ?: return@registerForActivityResult
+        val projection = arrayOf(
+            android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+        )
+        contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndexOrThrow(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                )
+                val numberIndex = cursor.getColumnIndexOrThrow(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                )
+                val name = cursor.getString(nameIndex) ?: ""
+                val number = cursor.getString(numberIndex) ?: ""
+                if (number.isNotBlank()) {
+                    FavoritesStore.addFavorite(this, FavoritesStore.Favorite(name, number))
+                    refreshFavorites()
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDialerBinding.inflate(layoutInflater)
@@ -69,6 +125,8 @@ class MainActivity : AppCompatActivity() {
         viewModel = ViewModelProvider(this)[DialerViewModel::class.java]
 
         setupDialPad()
+        setupFavorites()
+        setupContactSearch()
         setupActions()
         setupSwipeGestures()
         
@@ -95,8 +153,18 @@ class MainActivity : AppCompatActivity() {
                 if (abs(diffY) > abs(diffX) && abs(diffY) > 100 && abs(velocityY) > 100) {
                     if (diffY < 0) { // Swipe Up
                         startActivity(Intent(this@MainActivity, CallLogActivity::class.java))
-                        return true
+                    } else { // Swipe Down
+                        startActivity(Intent(this@MainActivity, ContactActivity::class.java))
                     }
+                    return true
+                }
+                if (abs(diffX) > abs(diffY) && abs(diffX) > 100 && abs(velocityX) > 100) {
+                    if (diffX > 0) { // Swipe Right
+                        startActivity(Intent(this@MainActivity, NoteActivity::class.java))
+                    } else { // Swipe Left
+                        startActivity(Intent(this@MainActivity, CallStatsActivity::class.java))
+                    }
+                    return true
                 }
                 return false
             }
@@ -114,8 +182,17 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        refreshFavorites()
+    }
+
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
+        if (intent.getBooleanExtra(EXTRA_ADD_CALL, false)) {
+            viewModel.clearDigits()
+            binding.dialerInput.setText("")
+        }
         val data = intent.data
         if (intent.action == Intent.ACTION_DIAL || intent.action == Intent.ACTION_VIEW) {
             val number = data?.schemeSpecificPart ?: ""
@@ -175,6 +252,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupContactSearch() {
+        contactAdapter = ContactSuggestionAdapter(
+            onCallClick = { suggestion ->
+                startOutgoingCall(suggestion.number)
+            }
+        )
+
+        binding.dialerInput.addTextChangedListener { text ->
+            val query = text?.toString().orEmpty().trim()
+            updateSuggestions(query)
+        }
+    }
+
     private fun setupActions() {
         binding.callButton.setOnClickListener {
             if (!RoleHelper.isDefaultDialer(this)) {
@@ -199,6 +289,126 @@ class MainActivity : AppCompatActivity() {
         binding.settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+
+        binding.addFavoriteButton.setOnClickListener {
+            requestContactsForFavorite()
+        }
+
+        binding.voicemailButton.setOnClickListener {
+            dialVoicemail()
+        }
+    }
+
+    private fun setupFavorites() {
+        favoritesAdapter = FavoriteAdapter(
+            onCallClick = { favorite ->
+                startOutgoingCall(favorite.number)
+            },
+            onRemoveClick = { favorite ->
+                FavoritesStore.removeFavorite(this, favorite.number)
+                refreshFavorites()
+            }
+        )
+        binding.suggestionsList.layoutManager = LinearLayoutManager(this)
+        binding.suggestionsList.adapter = favoritesAdapter
+        refreshFavorites()
+    }
+
+    private fun updateSuggestions(query: String) {
+        contactSearchJob?.cancel()
+        if (query.isBlank()) {
+            if (binding.suggestionsList.adapter !is FavoriteAdapter) {
+                binding.suggestionsList.adapter = favoritesAdapter
+            }
+            refreshFavorites()
+            return
+        }
+
+        if (binding.suggestionsList.adapter !is ContactSuggestionAdapter) {
+            binding.suggestionsList.adapter = contactAdapter
+        }
+
+        contactSearchJob = lifecycleScope.launch {
+            delay(150)
+            val results = queryContacts(query)
+            contactAdapter.submitList(results)
+        }
+    }
+
+    private suspend fun queryContacts(query: String): List<ContactSuggestion> {
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) return emptyList()
+
+        return withContext(Dispatchers.IO) {
+            val results = ArrayList<ContactSuggestion>()
+            val selection = "${android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ? OR " +
+                "${android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER} LIKE ?"
+            val args = arrayOf("%$query%", "%$query%")
+            val projection = arrayOf(
+                android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+            )
+            contentResolver.query(
+                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                projection,
+                selection,
+                args,
+                null
+            )?.use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                )
+                val numberIndex = cursor.getColumnIndexOrThrow(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                )
+                val seen = HashSet<String>()
+                while (cursor.moveToNext() && results.size < 10) {
+                    val name = cursor.getString(nameIndex).orEmpty()
+                    val number = cursor.getString(numberIndex).orEmpty()
+                    if (number.isBlank() || seen.contains(number)) continue
+                    seen.add(number)
+                    results.add(ContactSuggestion(name, number))
+                }
+            }
+            results
+        }
+    }
+
+    private fun refreshFavorites() {
+        val favorites = FavoritesStore.getFavorites(this)
+        favoritesAdapter.submitList(favorites)
+    }
+
+    private fun requestContactsForFavorite() {
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            launchContactPicker()
+        } else {
+            contactPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+
+    private fun launchContactPicker() {
+        val intent = Intent(android.content.Intent.ACTION_PICK).apply {
+            type = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+        }
+        contactPickerLauncher.launch(intent)
+    }
+
+    private fun dialVoicemail() {
+        val number = AppSettings.getVoicemailNumber(this)
+        if (number.isNullOrBlank()) {
+            Toast.makeText(this, getString(R.string.voicemail_not_set), Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, SettingsActivity::class.java))
+            return
+        }
+        startOutgoingCall(number)
     }
 
     private fun requestCallPermissionsIfNeeded() {
@@ -227,23 +437,26 @@ class MainActivity : AppCompatActivity() {
     private fun placeCallIfPossible() {
         val number = viewModel.dialedNumber.value?.trim() ?: ""
         if (number.isEmpty()) return
-
-        startOutgoingCall(number)
+        val isAddCall = intent?.getBooleanExtra(EXTRA_ADD_CALL, false) == true
+        startOutgoingCall(number, isAddCall)
+        if (isAddCall) {
+            intent?.removeExtra(EXTRA_ADD_CALL)
+        }
     }
 
-    private fun startOutgoingCall(number: String) {
+    private fun startOutgoingCall(number: String, isAddCall: Boolean = false) {
         val telecomManager = getSystemService(TelecomManager::class.java)
         val accounts = getCallCapableAccounts(telecomManager)
         
         if (accounts.size > 1) {
             val preferred = SimPreferences.getPreferred(this, accounts)
             if (preferred != null) {
-                placeCall(number, preferred)
+                placeCall(number, preferred, isAddCall)
             } else {
-                showAccountPicker(number, accounts)
+                showAccountPicker(number, accounts, isAddCall)
             }
         } else {
-            placeCall(number, accounts.firstOrNull())
+            placeCall(number, accounts.firstOrNull(), isAddCall)
         }
     }
 
@@ -263,7 +476,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showAccountPicker(number: String, accounts: List<PhoneAccountHandle>) {
+    private fun showAccountPicker(number: String, accounts: List<PhoneAccountHandle>, isAddCall: Boolean) {
         val telecomManager = getSystemService(TelecomManager::class.java)
         val labels = accounts.map { handle ->
             telecomManager.getPhoneAccount(handle)?.label?.toString() ?: "SIM"
@@ -272,18 +485,21 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.select_sim))
             .setItems(labels) { _, which ->
-                placeCall(number, accounts[which])
+                placeCall(number, accounts[which], isAddCall)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
-    private fun placeCall(number: String, account: PhoneAccountHandle?) {
+    private fun placeCall(number: String, account: PhoneAccountHandle?, isAddCall: Boolean) {
         val uri = Uri.fromParts("tel", number, null)
         val telecomManager = getSystemService(TelecomManager::class.java)
         val extras = Bundle()
         if (account != null) {
             extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account)
+        }
+        if (isAddCall) {
+            extras.putBoolean(TelecomManager.EXTRA_START_CALL_WITH_SPEAKERPHONE, false)
         }
         try {
             telecomManager.placeCall(uri, extras)
