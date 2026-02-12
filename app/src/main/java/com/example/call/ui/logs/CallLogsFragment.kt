@@ -9,36 +9,39 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Toast
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
+import android.provider.ContactsContract
+import android.telecom.TelecomManager
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.core.content.ContextCompat
+import androidx.core.widget.addTextChangedListener
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.core.widget.addTextChangedListener
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.call.MainActivity
 import com.example.call.R
 import com.example.call.data.AppDatabase
 import com.example.call.data.CallLogRepository
 import com.example.call.databinding.ActivityCallLogBinding
-import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.call.util.BlockedNumberStore
+import com.example.call.util.ContactLookup
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import androidx.activity.result.contract.ActivityResultContracts
-import com.example.call.util.ContactLookup
-import com.example.call.util.BlockedNumberStore
-import android.provider.ContactsContract
-import android.telecom.TelecomManager
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomsheet.BottomSheetDialog
 
-class CallLogActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityCallLogBinding
+class CallLogsFragment : Fragment() {
+    private var _binding: ActivityCallLogBinding? = null
+    private val binding get() = _binding!!
     private lateinit var viewModel: CallLogViewModel
     private lateinit var repository: CallLogRepository
     private val adapter = CallLogAdapter(
@@ -56,29 +59,42 @@ class CallLogActivity : AppCompatActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        val hasCallLog = result[Manifest.permission.READ_CALL_LOG] == true
-        val hasContacts = result[Manifest.permission.READ_CONTACTS] == true
+        val hasCallLog = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.READ_CALL_LOG
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasContacts = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
         if (hasCallLog) {
-            viewModel.syncFromSystem(contentResolver, hasContacts)
+            viewModel.syncFromSystem(requireContext().contentResolver, hasContacts)
         } else {
-            Toast.makeText(this, getString(R.string.call_log_permission), Toast.LENGTH_LONG)
+            Toast.makeText(requireContext(), getString(R.string.call_log_permission), Toast.LENGTH_LONG)
                 .show()
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityCallLogBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = ActivityCallLogBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
-        val dao = AppDatabase.getInstance(this).callLogDao()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val dao = AppDatabase.getInstance(requireContext()).callLogDao()
         repository = CallLogRepository(dao)
         viewModel = ViewModelProvider(
             this,
             CallLogViewModel.Factory(repository)
         )[CallLogViewModel::class.java]
 
-        binding.callLogsList.layoutManager = LinearLayoutManager(this)
+        binding.callLogsList.layoutManager = LinearLayoutManager(requireContext())
         binding.callLogsList.adapter = adapter
         binding.callLogsList.setHasFixedSize(true)
         binding.callLogsList.itemAnimator = null
@@ -86,7 +102,7 @@ class CallLogActivity : AppCompatActivity() {
         setupSwipeGestures()
         setupTimelineToggle()
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.filteredLogs.collectLatest { logs ->
                 adapter.submitLogs(logs)
             }
@@ -119,7 +135,9 @@ class CallLogActivity : AppCompatActivity() {
 
         requestPermissionsIfNeeded()
 
-        binding.backButton.setOnClickListener { finish() }
+        binding.backButton.setOnClickListener {
+            (activity as? MainActivity)?.showDialerPage()
+        }
     }
 
     private fun handleEntryClick(log: com.example.call.data.CallLogEntity) {
@@ -149,15 +167,22 @@ class CallLogActivity : AppCompatActivity() {
 
     private fun updateTimelineToggleUi() {
         val tint = if (timelineMode) {
-            ContextCompat.getColor(this, R.color.call_green)
+            ContextCompat.getColor(requireContext(), R.color.call_green)
         } else {
-            ContextCompat.getColor(this, R.color.text_secondary)
+            ContextCompat.getColor(requireContext(), R.color.text_secondary)
         }
         binding.timelineToggle.iconTint = android.content.res.ColorStateList.valueOf(tint)
     }
 
     private fun setupSwipeGestures() {
         val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+            override fun getSwipeDirs(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder
+            ): Int {
+                return if (viewHolder is CallLogAdapter.DividerViewHolder) 0 else super.getSwipeDirs(recyclerView, viewHolder)
+            }
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -170,7 +195,7 @@ class CallLogActivity : AppCompatActivity() {
                     return
                 }
                 val item = adapter.currentList[position]
-                
+
                 if (item is CallLogAdapter.LogItem.Entry) {
                     if (direction == ItemTouchHelper.RIGHT) {
                         startCall(item.log.phoneNumber)
@@ -178,9 +203,14 @@ class CallLogActivity : AppCompatActivity() {
                         startMessage(item.log.phoneNumber)
                     }
                 }
-                
-                // IMPORTANT: This resets the swipe state so the background doesn't stay visible
+
+                viewHolder.itemView.translationX = 0f
                 adapter.notifyItemChanged(position)
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewHolder.itemView.translationX = 0f
             }
 
             override fun onChildDraw(
@@ -197,42 +227,50 @@ class CallLogActivity : AppCompatActivity() {
                     return
                 }
 
-                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
-                    val itemView = viewHolder.itemView
-                    val p = Paint()
-                    
-                    if (dX > 0) { // Call (Swipe Right)
-                        p.color = Color.parseColor("#30D158")
-                        val background = RectF(itemView.left.toFloat(), itemView.top.toFloat(), dX, itemView.bottom.toFloat())
-                        c.drawRect(background, p)
-                    } else if (dX < 0) { // Message (Swipe Left)
-                        p.color = Color.parseColor("#007AFF")
-                        val background = RectF(itemView.right.toFloat() + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
-                        c.drawRect(background, p)
-                    }
+                val itemView = viewHolder.itemView
+                val p = Paint()
+
+                if (dX > 0) { // Call
+                    p.color = Color.parseColor("#30D158")
+                    val background = RectF(itemView.left.toFloat(), itemView.top.toFloat(), dX, itemView.bottom.toFloat())
+                    c.drawRect(background, p)
+                } else if (dX < 0) { // Message
+                    p.color = Color.parseColor("#007AFF")
+                    val background = RectF(itemView.right.toFloat() + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                    c.drawRect(background, p)
                 }
-                
+
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
             }
         }
-        
+
         ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.callLogsList)
     }
 
     private fun requestPermissionsIfNeeded() {
-        val callLogGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
-        val contactsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-        if (!callLogGranted) {
-            permissionLauncher.launch(arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS))
+        val callLogGranted = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.READ_CALL_LOG
+        ) == PackageManager.PERMISSION_GRANTED
+        val contactsGranted = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        val missing = mutableListOf<String>()
+        if (!callLogGranted) missing.add(Manifest.permission.READ_CALL_LOG)
+        if (!contactsGranted) missing.add(Manifest.permission.READ_CONTACTS)
+
+        if (missing.isNotEmpty()) {
+            permissionLauncher.launch(missing.toTypedArray())
         } else {
-            viewModel.syncFromSystem(contentResolver, contactsGranted)
+            viewModel.syncFromSystem(requireContext().contentResolver, contactsGranted)
         }
     }
 
     private fun startCall(number: String) {
         if (number.isBlank()) return
         val uri = Uri.fromParts("tel", number, null)
-        val telecomManager = getSystemService(TelecomManager::class.java)
+        val telecomManager = requireContext().getSystemService(TelecomManager::class.java)
         try {
             telecomManager.placeCall(uri, Bundle())
         } catch (_: SecurityException) {
@@ -246,9 +284,9 @@ class CallLogActivity : AppCompatActivity() {
     }
 
     private fun startEmail(number: String) {
-        val email = ContactLookup.findContactEmail(this, number)
+        val email = ContactLookup.findContactEmail(requireContext(), number)
         if (email.isNullOrBlank()) {
-            Toast.makeText(this, getString(R.string.no_email_found), Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.no_email_found), Toast.LENGTH_SHORT).show()
             return
         }
         startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")))
@@ -256,7 +294,7 @@ class CallLogActivity : AppCompatActivity() {
 
     private fun openOrCreateContact(number: String) {
         if (number.isBlank()) return
-        val contactUri = ContactLookup.findContactUri(this, number)
+        val contactUri = ContactLookup.findContactUri(requireContext(), number)
         if (contactUri != null) {
             startActivity(Intent(Intent.ACTION_VIEW, contactUri))
         } else {
@@ -275,7 +313,7 @@ class CallLogActivity : AppCompatActivity() {
             getString(R.string.tag_spam),
             getString(R.string.tag_none)
         )
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.tag_filter))
             .setItems(options) { _, which ->
                 val tag = when (which) {
@@ -284,7 +322,7 @@ class CallLogActivity : AppCompatActivity() {
                     2 -> CallLogTags.SPAM
                     else -> null
                 }
-                lifecycleScope.launch {
+                viewLifecycleOwner.lifecycleScope.launch {
                     repository.updateNoteTag(log.id, log.note, tag)
                 }
             }
@@ -294,9 +332,8 @@ class CallLogActivity : AppCompatActivity() {
     private fun showLogActions(log: com.example.call.data.CallLogEntity) {
         val actions = mutableListOf<String>()
         val actionHandlers = mutableListOf<() -> Unit>()
-        val isBlocked = BlockedNumberStore.isBlocked(this, log.phoneNumber)
+        val isBlocked = BlockedNumberStore.isBlocked(requireContext(), log.phoneNumber)
 
-        // Essential actions only
         actions.add(getString(R.string.open_contact))
         actionHandlers.add { openOrCreateContact(log.phoneNumber) }
 
@@ -323,12 +360,12 @@ class CallLogActivity : AppCompatActivity() {
         actions: List<String>,
         handlers: List<() -> Unit>
     ) {
-        val dialog = BottomSheetDialog(this)
+        val dialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.dialog_action_sheet, null)
         val titleView = view.findViewById<android.widget.TextView>(R.id.sheetTitle)
         val listView = view.findViewById<android.widget.ListView>(R.id.sheetList)
         titleView.text = title
-        listView.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, actions)
+        listView.adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, actions)
         listView.setOnItemClickListener { _, _, position, _ ->
             dialog.dismiss()
             handlers.getOrNull(position)?.invoke()
@@ -339,9 +376,9 @@ class CallLogActivity : AppCompatActivity() {
 
     private fun copyNumber(number: String) {
         if (number.isBlank()) return
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.phone_number), number))
-        Toast.makeText(this, getString(R.string.copied), Toast.LENGTH_SHORT).show()
+        val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.phone_number), number))
+        Toast.makeText(requireContext(), getString(R.string.copied), Toast.LENGTH_SHORT).show()
     }
 
     private fun shareNumber(number: String) {
@@ -354,31 +391,31 @@ class CallLogActivity : AppCompatActivity() {
     }
 
     private fun markSpam(log: com.example.call.data.CallLogEntity) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             repository.updateNoteTag(log.id, log.note, CallLogTags.SPAM)
         }
     }
 
     private fun toggleBlock(number: String, isBlocked: Boolean) {
         if (isBlocked) {
-            BlockedNumberStore.unblock(this, number)
-            Toast.makeText(this, getString(R.string.number_unblocked), Toast.LENGTH_SHORT).show()
+            BlockedNumberStore.unblock(requireContext(), number)
+            Toast.makeText(requireContext(), getString(R.string.number_unblocked), Toast.LENGTH_SHORT).show()
         } else {
-            BlockedNumberStore.block(this, number)
-            Toast.makeText(this, getString(R.string.number_blocked), Toast.LENGTH_SHORT).show()
+            BlockedNumberStore.block(requireContext(), number)
+            Toast.makeText(requireContext(), getString(R.string.number_blocked), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun showNoteDialog(log: com.example.call.data.CallLogEntity) {
-        val input = com.google.android.material.textfield.TextInputEditText(this)
+        val input = com.google.android.material.textfield.TextInputEditText(requireContext())
         input.setText(log.note.orEmpty())
         input.hint = getString(R.string.note_hint)
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.edit_note))
             .setView(input)
             .setPositiveButton(getString(R.string.save)) { _, _ ->
                 val note = input.text?.toString()?.trim().orEmpty()
-                lifecycleScope.launch {
+                viewLifecycleOwner.lifecycleScope.launch {
                     repository.updateNoteTag(log.id, note, log.tag)
                 }
             }
@@ -387,17 +424,17 @@ class CallLogActivity : AppCompatActivity() {
     }
 
     private fun deleteLog(log: com.example.call.data.CallLogEntity) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             repository.deleteById(log.id)
         }
     }
 
     private fun confirmClearAll() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.clear_all_logs))
             .setMessage(getString(R.string.clear_all_logs_confirm))
             .setPositiveButton(getString(R.string.delete)) { _, _ ->
-                lifecycleScope.launch {
+                viewLifecycleOwner.lifecycleScope.launch {
                     repository.clearAll()
                 }
             }
@@ -407,7 +444,7 @@ class CallLogActivity : AppCompatActivity() {
 
     private fun startSelectionMode(log: com.example.call.data.CallLogEntity) {
         if (actionMode == null) {
-            actionMode = startSupportActionMode(selectionCallback)
+            actionMode = (activity as? AppCompatActivity)?.startSupportActionMode(selectionCallback)
         }
         toggleSelection(log)
     }
@@ -431,7 +468,7 @@ class CallLogActivity : AppCompatActivity() {
 
     private val selectionCallback = object : ActionMode.Callback {
         override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-            menuInflater.inflate(R.menu.menu_call_log_selection, menu)
+            requireActivity().menuInflater.inflate(R.menu.menu_call_log_selection, menu)
             updateActionModeTitle()
             return true
         }
@@ -442,7 +479,7 @@ class CallLogActivity : AppCompatActivity() {
             return when (item.itemId) {
                 R.id.action_delete -> {
                     val ids = selectedIds.toList()
-                    lifecycleScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         repository.deleteByIds(ids)
                     }
                     mode.finish()
@@ -457,5 +494,10 @@ class CallLogActivity : AppCompatActivity() {
             adapter.setSelection(selectedIds)
             actionMode = null
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

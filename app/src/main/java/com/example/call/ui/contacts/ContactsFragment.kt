@@ -7,32 +7,32 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.telecom.TelecomManager
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
-import android.media.RingtoneManager
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.call.MainActivity
 import com.example.call.R
 import com.example.call.databinding.ActivityContactsBinding
+import com.example.call.util.BlockedNumberStore
 import com.example.call.util.ContactLookup
 import com.example.call.util.ContactRingtoneStore
-import com.example.call.util.BlockedNumberStore
 import com.example.call.util.FavoritesStore
-import androidx.lifecycle.lifecycleScope
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
-import com.google.android.material.bottomsheet.BottomSheetDialog
 
-class ContactActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityContactsBinding
+class ContactsFragment : Fragment() {
+    private var _binding: ActivityContactsBinding? = null
+    private val binding get() = _binding!!
     private val adapter = ContactAdapter(
         onCallClick = { contact -> startCall(contact.number) },
         onContactClick = { contact -> showContactOptions(contact) },
@@ -44,10 +44,10 @@ class ContactActivity : AppCompatActivity() {
     private val ringtonePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        if (result.resultCode != android.app.Activity.RESULT_OK) return@registerForActivityResult
         val number = pendingRingtoneNumber ?: return@registerForActivityResult
-        val uri: Uri? = result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
-        ContactRingtoneStore.setRingtoneUri(this, number, uri?.toString())
+        val uri: Uri? = result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        ContactRingtoneStore.setRingtoneUri(requireContext(), number, uri?.toString())
         pendingRingtoneNumber = null
     }
 
@@ -57,23 +57,32 @@ class ContactActivity : AppCompatActivity() {
         if (granted) {
             loadContacts()
         } else {
-            Toast.makeText(this, getString(R.string.contacts_permission_needed), Toast.LENGTH_LONG)
+            Toast.makeText(requireContext(), getString(R.string.contacts_permission_needed), Toast.LENGTH_LONG)
                 .show()
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityContactsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = ActivityContactsBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
-        binding.contactsList.layoutManager = LinearLayoutManager(this)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.contactsList.layoutManager = LinearLayoutManager(requireContext())
         binding.contactsList.adapter = adapter
         binding.contactsList.setHasFixedSize(true)
         binding.contactsList.itemAnimator = null
         binding.contactsList.setItemViewCacheSize(16)
 
-        binding.backButton.setOnClickListener { finish() }
+        binding.backButton.setOnClickListener {
+            (activity as? MainActivity)?.showDialerPage()
+        }
 
         binding.contactsSearchInput.addTextChangedListener { text ->
             val query = text?.toString().orEmpty()
@@ -85,7 +94,7 @@ class ContactActivity : AppCompatActivity() {
 
     private fun requestContactsIfNeeded() {
         val granted = ContextCompat.checkSelfPermission(
-            this,
+            requireContext(),
             Manifest.permission.READ_CONTACTS
         ) == PackageManager.PERMISSION_GRANTED
         if (granted) {
@@ -96,7 +105,7 @@ class ContactActivity : AppCompatActivity() {
     }
 
     private fun loadContacts() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val contacts = withContext(Dispatchers.IO) {
                 val results = ArrayList<ContactItem>()
                 val projection = arrayOf(
@@ -104,7 +113,7 @@ class ContactActivity : AppCompatActivity() {
                     ContactsContract.CommonDataKinds.Phone.NUMBER
                 )
                 val sort = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
-                contentResolver.query(
+                requireContext().contentResolver.query(
                     ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                     projection,
                     null,
@@ -171,7 +180,7 @@ class ContactActivity : AppCompatActivity() {
     private fun startCall(number: String) {
         if (number.isBlank()) return
         val uri = Uri.fromParts("tel", number, null)
-        val telecomManager = getSystemService(TelecomManager::class.java)
+        val telecomManager = requireContext().getSystemService(TelecomManager::class.java)
         try {
             telecomManager.placeCall(uri, Bundle())
         } catch (_: SecurityException) {
@@ -181,7 +190,7 @@ class ContactActivity : AppCompatActivity() {
 
     private fun openOrCreateContact(number: String) {
         if (number.isBlank()) return
-        val contactUri = ContactLookup.findContactUri(this, number)
+        val contactUri = ContactLookup.findContactUri(requireContext(), number)
         if (contactUri != null) {
             startActivity(Intent(Intent.ACTION_VIEW, contactUri))
         } else {
@@ -196,10 +205,9 @@ class ContactActivity : AppCompatActivity() {
     private fun showContactOptions(contact: ContactItem) {
         val actions = mutableListOf<String>()
         val handlers = mutableListOf<() -> Unit>()
-        val isBlocked = BlockedNumberStore.isBlocked(this, contact.number)
-        val isFavorite = FavoritesStore.getFavorites(this).any { it.number == contact.number }
+        val isBlocked = BlockedNumberStore.isBlocked(requireContext(), contact.number)
+        val isFavorite = FavoritesStore.getFavorites(requireContext()).any { it.number == contact.number }
 
-        // Essential actions only
         actions.add(getString(R.string.open_contact))
         handlers.add { openOrCreateContact(contact.number) }
 
@@ -220,13 +228,13 @@ class ContactActivity : AppCompatActivity() {
 
     private fun launchRingtonePicker(number: String) {
         pendingRingtoneNumber = number
-        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
-            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-            val existing = ContactRingtoneStore.getRingtoneUri(this@ContactActivity, number)
+        val intent = Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_RINGTONE)
+            putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            val existing = ContactRingtoneStore.getRingtoneUri(requireContext(), number)
             if (!existing.isNullOrBlank()) {
-                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existing))
+                putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existing))
             }
         }
         ringtonePickerLauncher.launch(intent)
@@ -238,18 +246,18 @@ class ContactActivity : AppCompatActivity() {
     }
 
     private fun startEmail(number: String) {
-        val email = ContactLookup.findContactEmail(this, number)
+        val email = ContactLookup.findContactEmail(requireContext(), number)
         if (email.isNullOrBlank()) {
-            Toast.makeText(this, getString(R.string.no_email_found), Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.no_email_found), Toast.LENGTH_SHORT).show()
             return
         }
         startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")))
     }
 
     private fun editContact(number: String) {
-        val contactUri = ContactLookup.findContactUri(this, number)
+        val contactUri = ContactLookup.findContactUri(requireContext(), number)
         if (contactUri == null) {
-            Toast.makeText(this, getString(R.string.contact_not_found), Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.contact_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         val intent = Intent(Intent.ACTION_EDIT, contactUri).apply {
@@ -259,9 +267,9 @@ class ContactActivity : AppCompatActivity() {
     }
 
     private fun deleteContact(number: String) {
-        val contactUri = ContactLookup.findContactUri(this, number)
+        val contactUri = ContactLookup.findContactUri(requireContext(), number)
         if (contactUri == null) {
-            Toast.makeText(this, getString(R.string.contact_not_found), Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.contact_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         val intent = Intent(Intent.ACTION_DELETE, contactUri)
@@ -269,7 +277,7 @@ class ContactActivity : AppCompatActivity() {
     }
 
     private fun shareContact(number: String) {
-        val contactUri = ContactLookup.findContactUri(this, number)
+        val contactUri = ContactLookup.findContactUri(requireContext(), number)
         if (contactUri != null) {
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = ContactsContract.Contacts.CONTENT_VCARD_TYPE
@@ -293,28 +301,28 @@ class ContactActivity : AppCompatActivity() {
 
     private fun copyNumber(number: String) {
         if (number.isBlank()) return
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.phone_number), number))
-        Toast.makeText(this, getString(R.string.copied), Toast.LENGTH_SHORT).show()
+        val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.phone_number), number))
+        Toast.makeText(requireContext(), getString(R.string.copied), Toast.LENGTH_SHORT).show()
     }
 
     private fun toggleFavorite(contact: ContactItem, isFavorite: Boolean) {
         if (isFavorite) {
-            FavoritesStore.removeFavorite(this, contact.number)
-            Toast.makeText(this, getString(R.string.favorite_removed), Toast.LENGTH_SHORT).show()
+            FavoritesStore.removeFavorite(requireContext(), contact.number)
+            Toast.makeText(requireContext(), getString(R.string.favorite_removed), Toast.LENGTH_SHORT).show()
         } else {
-            FavoritesStore.addFavorite(this, FavoritesStore.Favorite(contact.name, contact.number))
-            Toast.makeText(this, getString(R.string.favorite_added), Toast.LENGTH_SHORT).show()
+            FavoritesStore.addFavorite(requireContext(), FavoritesStore.Favorite(contact.name, contact.number))
+            Toast.makeText(requireContext(), getString(R.string.favorite_added), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun toggleBlock(number: String, isBlocked: Boolean) {
         if (isBlocked) {
-            BlockedNumberStore.unblock(this, number)
-            Toast.makeText(this, getString(R.string.number_unblocked), Toast.LENGTH_SHORT).show()
+            BlockedNumberStore.unblock(requireContext(), number)
+            Toast.makeText(requireContext(), getString(R.string.number_unblocked), Toast.LENGTH_SHORT).show()
         } else {
-            BlockedNumberStore.block(this, number)
-            Toast.makeText(this, getString(R.string.number_blocked), Toast.LENGTH_SHORT).show()
+            BlockedNumberStore.block(requireContext(), number)
+            Toast.makeText(requireContext(), getString(R.string.number_blocked), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -323,12 +331,12 @@ class ContactActivity : AppCompatActivity() {
         actions: List<String>,
         handlers: List<() -> Unit>
     ) {
-        val dialog = BottomSheetDialog(this)
+        val dialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.dialog_action_sheet, null)
         val titleView = view.findViewById<android.widget.TextView>(R.id.sheetTitle)
         val listView = view.findViewById<android.widget.ListView>(R.id.sheetList)
         titleView.text = title
-        listView.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, actions)
+        listView.adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, actions)
         listView.setOnItemClickListener { _, _, position, _ ->
             dialog.dismiss()
             handlers.getOrNull(position)?.invoke()
@@ -336,5 +344,9 @@ class ContactActivity : AppCompatActivity() {
         dialog.setContentView(view)
         dialog.show()
     }
-}
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}

@@ -10,7 +10,8 @@ import com.example.call.databinding.ItemContactHeaderBinding
 
 class ContactAdapter(
     private val onCallClick: (ContactItem) -> Unit,
-    private val onContactClick: (ContactItem) -> Unit
+    private val onContactClick: (ContactItem) -> Unit,
+    private val onQuickMessage: (ContactItem) -> Unit
 ) : ListAdapter<ContactAdapter.ContactRow, RecyclerView.ViewHolder>(DIFF) {
 
     sealed class ContactRow {
@@ -39,7 +40,7 @@ class ContactAdapter(
                 parent,
                 false
             )
-            ContactViewHolder(binding, onCallClick, onContactClick)
+            ContactViewHolder(binding, onCallClick, onContactClick, onQuickMessage)
         }
     }
 
@@ -53,18 +54,17 @@ class ContactAdapter(
     class ContactViewHolder(
         private val binding: ItemContactBinding,
         private val onCallClick: (ContactItem) -> Unit,
-        private val onContactClick: (ContactItem) -> Unit
+        private val onContactClick: (ContactItem) -> Unit,
+        private val onQuickMessage: (ContactItem) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: ContactRow.Entry) {
             val contact = item.contact
             val displayName = if (contact.name.isBlank()) contact.number else contact.name
             binding.contactName.text = displayName
             binding.contactNumber.text = contact.number
-            binding.root.setOnClickListener { onCallClick(contact) }
-            binding.root.setOnLongClickListener {
-                onContactClick(contact)
-                true
-            }
+            binding.root.setOnClickListener { onContactClick(contact) }
+            binding.quickCallContact.setOnClickListener { onCallClick(contact) }
+            binding.quickMessageContact.setOnClickListener { onQuickMessage(contact) }
         }
     }
 

@@ -74,7 +74,8 @@ object InCallBarController {
         val owner = activity as? LifecycleOwner ?: return
         owner.lifecycleScope.launch {
             owner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                CallController.calls.collect { calls ->
+                CallController.calls.collect { callState ->
+                    val calls = callState.calls
                     val call = CallController.getPrimaryCall()
                     if (call == null || call.state == Call.STATE_DISCONNECTED) {
                         bar.visibility = View.GONE

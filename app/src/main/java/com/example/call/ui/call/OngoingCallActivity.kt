@@ -9,33 +9,31 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-import android.animation.ValueAnimator
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.view.MotionEvent
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.widget.ImageViewCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.call.MainActivity
 import com.example.call.R
 import com.example.call.databinding.ActivityOngoingCallBinding
 import com.example.call.databinding.ViewCallControlBinding
 import com.example.call.telecom.CallController
-import com.example.call.util.AppSettings
-import com.example.call.util.CallThemeManager
 import com.example.call.util.ContactLookup
-import com.example.call.util.GesturePreferences
-import com.google.android.material.button.MaterialButton
+import com.example.call.util.AppSettings
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.io.File
@@ -48,9 +46,6 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
     private var dtmfDialog: AlertDialog? = null
-    private lateinit var audioManager: AudioManager
-    private var overlayAnimator: ValueAnimator? = null
-    private var backgroundAnimator: ValueAnimator? = null
     
     private lateinit var sensorManager: SensorManager
     private var proximitySensor: Sensor? = null
@@ -73,13 +68,22 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         binding = ActivityOngoingCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        }
+
         setupControls()
         observeAudioState()
         observeCallState()
-        observeCallList()
         setupSensors()
-        audioManager = getSystemService(AudioManager::class.java)
-        applyCallTheme()
         
         binding.endCall.setOnClickListener {
             CallController.disconnect()
@@ -91,7 +95,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
         
-        if (GesturePreferences.isShakeToAcceptEnabled(this)) {
+        if (AppSettings.isShakeToAcceptEnabled(this)) {
             accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         }
         
@@ -107,30 +111,8 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         lifecycleScope.launch {
             CallController.currentCallFlow.collectLatest { call ->
                 if (call == null) {
-                    stopRecording()
                     finish()
-                } else {
-                    bindCallerInfo()
-                    maybeStartAutoRecording(call)
                 }
-            }
-        }
-    }
-
-    private fun observeCallList() {
-        lifecycleScope.launch {
-            CallController.calls.collectLatest {
-                val canMerge = CallController.canMerge()
-                val canSwap = CallController.canSwap()
-                val primary = CallController.getPrimaryCall()
-                isOnHold = primary?.state == Call.STATE_HOLDING
-                updateHoldStateUI()
-                binding.merge.root.isEnabled = canMerge
-                binding.merge.controlIcon.isEnabled = canMerge
-                binding.merge.controlLabel.alpha = if (canMerge) 0.9f else 0.4f
-                binding.swap.root.isEnabled = canSwap
-                binding.swap.controlIcon.isEnabled = canSwap
-                binding.swap.controlLabel.alpha = if (canSwap) 0.9f else 0.4f
             }
         }
     }
@@ -138,7 +120,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
     private fun setupControls() {
         // Mute
         binding.mute.controlLabel.text = getString(R.string.mute)
-        binding.mute.controlIcon.setIconResource(android.R.drawable.ic_lock_silent_mode)
+        binding.mute.controlIcon.setImageDrawable(AppCompatResources.getDrawable(this, android.R.drawable.ic_lock_silent_mode))
         binding.mute.controlIcon.setOnClickListener {
             val currentState = CallController.audioState.value
             val isCurrentlyMuted = currentState?.isMuted ?: false
@@ -147,64 +129,36 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
 
         // Keypad
         binding.keypad.controlLabel.text = getString(R.string.keypad)
-        binding.keypad.controlIcon.setIconResource(android.R.drawable.ic_dialog_dialer)
+        binding.keypad.controlIcon.setImageDrawable(AppCompatResources.getDrawable(this, android.R.drawable.ic_dialog_dialer))
         binding.keypad.controlIcon.setOnClickListener {
             showKeypadDialog()
         }
 
         // Speaker
         binding.speaker.controlLabel.text = getString(R.string.speaker)
-        binding.speaker.controlIcon.setIconResource(android.R.drawable.stat_sys_speakerphone)
+        binding.speaker.controlIcon.setImageDrawable(AppCompatResources.getDrawable(this, android.R.drawable.stat_sys_speakerphone))
         binding.speaker.controlIcon.setOnClickListener {
             val currentState = CallController.audioState.value
             val isSpeakerOn = currentState?.route == CallAudioState.ROUTE_SPEAKER
             CallController.toggleSpeaker(!isSpeakerOn)
         }
-        binding.speaker.controlIcon.setOnLongClickListener {
-            showAudioRouteDialog()
-            true
-        }
-
-        // Volume Down
-        binding.volumeDown.controlLabel.text = getString(R.string.volume_down)
-        binding.volumeDown.controlIcon.setIconResource(android.R.drawable.ic_media_rew)
-        binding.volumeDown.controlIcon.setOnClickListener {
-            audioManager.adjustStreamVolume(
-                AudioManager.STREAM_VOICE_CALL,
-                AudioManager.ADJUST_LOWER,
-                AudioManager.FLAG_SHOW_UI
-            )
-        }
-
-        // Volume Up
-        binding.volumeUp.controlLabel.text = getString(R.string.volume_up)
-        binding.volumeUp.controlIcon.setIconResource(android.R.drawable.ic_media_ff)
-        binding.volumeUp.controlIcon.setOnClickListener {
-            audioManager.adjustStreamVolume(
-                AudioManager.STREAM_VOICE_CALL,
-                AudioManager.ADJUST_RAISE,
-                AudioManager.FLAG_SHOW_UI
-            )
-        }
 
         // Add Call
         binding.addCall.controlLabel.text = getString(R.string.add_call)
-        binding.addCall.controlIcon.setIconResource(android.R.drawable.ic_input_add)
+        binding.addCall.controlIcon.setImageDrawable(AppCompatResources.getDrawable(this, android.R.drawable.ic_input_add))
         binding.addCall.controlIcon.setOnClickListener {
-            CallController.getActiveCall()?.hold()
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                putExtra(MainActivity.EXTRA_ADD_CALL, true)
             }
             startActivity(intent)
         }
 
         // Hold
         binding.hold.controlLabel.text = getString(R.string.hold)
-        binding.hold.controlIcon.setIconResource(android.R.drawable.ic_media_pause)
+        binding.hold.controlIcon.setImageDrawable(AppCompatResources.getDrawable(this, android.R.drawable.ic_media_pause))
         binding.hold.controlIcon.setOnClickListener {
             isOnHold = !isOnHold
-            CallController.getPrimaryCall()?.let {
+            CallController.currentCall?.let {
                 if (isOnHold) it.hold() else it.unhold()
             }
             updateHoldStateUI()
@@ -212,30 +166,12 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
 
         // Record
         binding.record.controlLabel.text = getString(R.string.record)
-        binding.record.controlIcon.setIconResource(android.R.drawable.presence_video_online)
+        binding.record.controlIcon.setImageDrawable(AppCompatResources.getDrawable(this, android.R.drawable.presence_video_online))
         binding.record.controlIcon.setOnClickListener {
             if (isRecording) {
                 stopRecording()
             } else {
                 startRecording()
-            }
-        }
-
-        // Merge
-        binding.merge.controlLabel.text = getString(R.string.merge)
-        binding.merge.controlIcon.setIconResource(android.R.drawable.ic_menu_share)
-        binding.merge.controlIcon.setOnClickListener {
-            if (CallController.canMerge()) {
-                CallController.mergeCalls()
-            }
-        }
-
-        // Swap
-        binding.swap.controlLabel.text = getString(R.string.swap)
-        binding.swap.controlIcon.setIconResource(android.R.drawable.ic_menu_rotate)
-        binding.swap.controlIcon.setOnClickListener {
-            if (CallController.canSwap()) {
-                CallController.swapCalls()
             }
         }
     }
@@ -247,15 +183,14 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         }
 
         try {
-            val directory = getExternalFilesDir(null) ?: externalCacheDir
-            val file = File(directory, "call_${System.currentTimeMillis()}.amr")
+            val file = File(externalCacheDir, "call_${System.currentTimeMillis()}.amr")
             mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(this)
             } else {
                 @Suppress("DEPRECATION")
                 MediaRecorder()
             }.apply {
-                setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
                 setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
                 setOutputFile(file.absolutePath)
@@ -291,7 +226,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
             CallController.audioState.collectLatest { state ->
                 state?.let {
                     updateMuteUI(it.isMuted)
-                    updateAudioRouteUI(it)
+                    updateSpeakerUI(it.route == CallAudioState.ROUTE_SPEAKER)
                 }
             }
         }
@@ -302,49 +237,9 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         toggleControlVisuals(bindingMute, isMuted)
     }
 
-    private fun updateAudioRouteUI(state: CallAudioState) {
+    private fun updateSpeakerUI(isOn: Boolean) {
         val bindingSpeaker = ViewCallControlBinding.bind(binding.speaker.root)
-        val route = state.route
-        val label = when (route) {
-            CallAudioState.ROUTE_BLUETOOTH -> getString(R.string.audio_bluetooth)
-            CallAudioState.ROUTE_WIRED_HEADSET -> getString(R.string.audio_headset)
-            CallAudioState.ROUTE_SPEAKER -> getString(R.string.audio_speaker)
-            else -> getString(R.string.audio_earpiece)
-        }
-        bindingSpeaker.controlLabel.text = label
-        toggleControlVisuals(bindingSpeaker, route == CallAudioState.ROUTE_SPEAKER)
-    }
-
-    private fun showAudioRouteDialog() {
-        val state = CallController.audioState.value ?: return
-        val routes = mutableListOf<Pair<String, Int>>()
-        val mask = state.supportedRouteMask
-
-        if (mask and CallAudioState.ROUTE_EARPIECE != 0) {
-            routes.add(getString(R.string.audio_earpiece) to CallAudioState.ROUTE_EARPIECE)
-        }
-        if (mask and CallAudioState.ROUTE_SPEAKER != 0) {
-            routes.add(getString(R.string.audio_speaker) to CallAudioState.ROUTE_SPEAKER)
-        }
-        if (mask and CallAudioState.ROUTE_BLUETOOTH != 0) {
-            routes.add(getString(R.string.audio_bluetooth) to CallAudioState.ROUTE_BLUETOOTH)
-        }
-        if (mask and CallAudioState.ROUTE_WIRED_HEADSET != 0) {
-            routes.add(getString(R.string.audio_headset) to CallAudioState.ROUTE_WIRED_HEADSET)
-        }
-
-        if (routes.isEmpty()) return
-
-        val labels = routes.map { it.first }.toTypedArray()
-        val selectedIndex = routes.indexOfFirst { it.second == state.route }
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.audio_route))
-            .setSingleChoiceItems(labels, selectedIndex) { dialog, which ->
-                CallController.setAudioRoute(routes[which].second)
-                dialog.dismiss()
-            }
-            .show()
+        toggleControlVisuals(bindingSpeaker, isOn)
     }
 
     private fun updateHoldStateUI() {
@@ -359,7 +254,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         val inactiveColor = ContextCompat.getColor(this, R.color.glass_white)
         
         bindingRecord.controlIcon.backgroundTintList = ColorStateList.valueOf(if (isRecording) activeColor else inactiveColor)
-        bindingRecord.controlIcon.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white))
+        ImageViewCompat.setImageTintList(bindingRecord.controlIcon, ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white)))
     }
 
     private fun toggleControlVisuals(controlBinding: ViewCallControlBinding, isActive: Boolean) {
@@ -370,16 +265,16 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
 
         if (isActive) {
             controlBinding.controlIcon.backgroundTintList = ColorStateList.valueOf(activeColor)
-            controlBinding.controlIcon.iconTint = ColorStateList.valueOf(activeIconTint)
+            ImageViewCompat.setImageTintList(controlBinding.controlIcon, ColorStateList.valueOf(activeIconTint))
         } else {
             controlBinding.controlIcon.backgroundTintList = ColorStateList.valueOf(inactiveColor)
-            controlBinding.controlIcon.iconTint = ColorStateList.valueOf(inactiveIconTint)
+            ImageViewCompat.setImageTintList(controlBinding.controlIcon, ColorStateList.valueOf(inactiveIconTint))
         }
     }
 
     private fun showKeypadDialog() {
         if (dtmfDialog?.isShowing == true) return
-        val call = CallController.getPrimaryCall()
+        val call = CallController.currentCall
         if (call == null) {
             Toast.makeText(this, getString(R.string.no_active_call), Toast.LENGTH_SHORT).show()
             return
@@ -414,7 +309,7 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         )
 
         buttons.forEach { (id, tone) ->
-            view.findViewById<MaterialButton>(id)?.setOnTouchListener { _, event ->
+            view.findViewById<com.google.android.material.button.MaterialButton>(id)?.setOnTouchListener { _, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> CallController.playDtmf(tone)
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> CallController.stopDtmf()
@@ -428,14 +323,12 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         super.onResume()
         proximitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
-        startBackgroundAnimation()
     }
 
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(this)
         if (wakeLock?.isHeld == true) wakeLock?.release()
-        stopBackgroundAnimation()
     }
 
     override fun onStart() {
@@ -446,17 +339,12 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onStop() {
         handler.removeCallbacks(timerRunnable)
+        stopRecording()
         super.onStop()
     }
 
-    override fun onDestroy() {
-        stopRecording()
-        stopBackgroundAnimation()
-        super.onDestroy()
-    }
-
     private fun bindCallerInfo() {
-        val number = CallController.getPrimaryCall()
+        val number = CallController.currentCall
             ?.details
             ?.handle
             ?.schemeSpecificPart
@@ -471,59 +359,14 @@ class OngoingCallActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
-    private fun applyCallTheme() {
-        val theme = AppSettings.getCallTheme(this)
-        val overlayRes = CallThemeManager.getOverlayRes(theme)
-        binding.callThemeOverlay.setBackgroundResource(overlayRes)
-    }
-
-    private fun startBackgroundAnimation() {
-        if (overlayAnimator?.isRunning == true) return
-        overlayAnimator = ValueAnimator.ofFloat(0.35f, 0.65f).apply {
-            duration = 4000
-            repeatMode = ValueAnimator.REVERSE
-            repeatCount = ValueAnimator.INFINITE
-            addUpdateListener { animator ->
-                binding.callThemeOverlay.alpha = animator.animatedValue as Float
-            }
-        }
-        backgroundAnimator = ValueAnimator.ofFloat(1.0f, 1.06f).apply {
-            duration = 6000
-            repeatMode = ValueAnimator.REVERSE
-            repeatCount = ValueAnimator.INFINITE
-            addUpdateListener { animator ->
-                val scale = animator.animatedValue as Float
-                binding.callerBackground.scaleX = scale
-                binding.callerBackground.scaleY = scale
-            }
-        }
-        overlayAnimator?.start()
-        backgroundAnimator?.start()
-    }
-
-    private fun stopBackgroundAnimation() {
-        overlayAnimator?.cancel()
-        backgroundAnimator?.cancel()
-        overlayAnimator = null
-        backgroundAnimator = null
-    }
-
     private fun updateCallTimer() {
-        val call = CallController.getPrimaryCall() ?: return
+        val call = CallController.currentCall ?: return
         val connectTime = call.details.connectTimeMillis
         if (connectTime > 0) {
             val elapsed = System.currentTimeMillis() - connectTime
             binding.callStatus.text = formatElapsed(elapsed)
         } else {
             binding.callStatus.text = getString(R.string.call_status_connecting)
-        }
-    }
-
-    private fun maybeStartAutoRecording(call: Call) {
-        if (!AppSettings.isAutoCallRecordingEnabled(this)) return
-        if (isRecording) return
-        if (call.details.connectTimeMillis > 0L) {
-            startRecording()
         }
     }
 

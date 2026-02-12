@@ -16,10 +16,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.READ_CALENDAR" />
-    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -32,6 +31,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Call">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -42,13 +42,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tel" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tel" />
             </intent-filter>
         </activity>
@@ -63,12 +73,6 @@
             android:name=".ui.stats.CallStatsActivity"
             android:exported="false"
             android:label="@string/call_stats_title"
-            android:theme="@style/Theme.Call" />
-
-        <activity
-            android:name=".ui.contacts.ContactActivity"
-            android:exported="false"
-            android:label="@string/contacts"
             android:theme="@style/Theme.Call" />
 
         <activity
@@ -132,13 +136,12 @@
             android:exported="false"
             android:foregroundServiceType="phoneCall" />
 
-        <receiver
-            android:name=".util.MissedCallReminderReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".util.CallReminderReceiver"
-            android:exported="false" />
+        <receiver android:name=".util.CallReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.call.ACTION_REMINDER" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -19,12 +19,20 @@ import java.util.Locale
 import java.util.Calendar
 
 class CallLogAdapter(
-    private val onCallClick: (CallLogEntity) -> Unit,
+    private val onEntryClick: (CallLogEntity) -> Unit,
+    private val onEntryLongPress: (CallLogEntity) -> Unit,
     private val onContactClick: (CallLogEntity) -> Unit,
-    private val onTagLongPress: (CallLogEntity) -> Unit
+    private val onTagLongPress: (CallLogEntity) -> Unit,
+    private val onQuickCall: (CallLogEntity) -> Unit,
+    private val onQuickMessage: (CallLogEntity) -> Unit
 ) : ListAdapter<CallLogAdapter.LogItem, RecyclerView.ViewHolder>(DIFF_CALLBACK) {
 
     private var timelineMode: Boolean = false
+    private var selectedIds: Set<Long> = emptySet()
+
+    init {
+        setHasStableIds(true)
+    }
 
     sealed class LogItem {
         data class Divider(val date: String) : LogItem()
@@ -38,6 +46,13 @@ class CallLogAdapter(
         }
     }
 
+    override fun getItemId(position: Int): Long {
+        return when (val item = getItem(position)) {
+            is LogItem.Entry -> item.log.id
+            is LogItem.Divider -> item.date.hashCode().toLong() shl 1
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
@@ -48,10 +63,10 @@ class CallLogAdapter(
             else -> {
                 if (timelineMode) {
                     val binding = ItemCallLogTimelineBinding.inflate(inflater, parent, false)
-                    TimelineLogViewHolder(binding, onCallClick, onContactClick)
+                    TimelineLogViewHolder(binding, onEntryClick, onEntryLongPress, onContactClick)
                 } else {
                     val binding = ItemCallLogBinding.inflate(inflater, parent, false)
-                    LogViewHolder(binding, onCallClick, onContactClick)
+                    LogViewHolder(binding, onEntryClick, onEntryLongPress, onContactClick, onQuickCall, onQuickMessage)
                 }
             }
         }
@@ -72,6 +87,18 @@ class CallLogAdapter(
         if (timelineMode == enabled) return
         timelineMode = enabled
         notifyDataSetChanged()
+    }
+
+    fun setSelection(ids: Set<Long>) {
+        val previous = selectedIds
+        selectedIds = ids
+        val changed = (previous + ids).toSet()
+        if (changed.isEmpty()) return
+        currentList.forEachIndexed { index, item ->
+            if (item is LogItem.Entry && changed.contains(item.log.id)) {
+                notifyItemChanged(index)
+            }
+        }
     }
 
     fun submitLogs(logs: List<CallLogEntity>) {
@@ -111,8 +138,11 @@ class CallLogAdapter(
 
     inner class LogViewHolder(
         private val binding: ItemCallLogBinding,
-        private val onCallClick: (CallLogEntity) -> Unit,
-        private val onContactClick: (CallLogEntity) -> Unit
+        private val onEntryClick: (CallLogEntity) -> Unit,
+        private val onEntryLongPress: (CallLogEntity) -> Unit,
+        private val onContactClick: (CallLogEntity) -> Unit,
+        private val onQuickCall: (CallLogEntity) -> Unit,
+        private val onQuickMessage: (CallLogEntity) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
         
         private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -128,16 +158,22 @@ class CallLogAdapter(
                 callTime = binding.callTime,
                 callDirection = binding.callDirection,
                 item = item,
-                onCallClick = onCallClick,
+                onEntryClick = onEntryClick,
+                onEntryLongPress = onEntryLongPress,
                 onContactClick = onContactClick,
-                onTagLongPress = onTagLongPress
+                onTagLongPress = onTagLongPress,
+                isSelected = selectedIds.contains(item.id)
             )
+            
+            binding.quickCallButton.setOnClickListener { onQuickCall(item) }
+            binding.quickMessageButton.setOnClickListener { onQuickMessage(item) }
         }
     }
 
     inner class TimelineLogViewHolder(
         private val binding: ItemCallLogTimelineBinding,
-        private val onCallClick: (CallLogEntity) -> Unit,
+        private val onEntryClick: (CallLogEntity) -> Unit,
+        private val onEntryLongPress: (CallLogEntity) -> Unit,
         private val onContactClick: (CallLogEntity) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
@@ -154,10 +190,12 @@ class CallLogAdapter(
                 callTime = binding.callTime,
                 callDirection = binding.callDirection,
                 item = item,
-                onCallClick = onCallClick,
+                onEntryClick = onEntryClick,
+                onEntryLongPress = onEntryLongPress,
                 onContactClick = onContactClick,
                 onTagLongPress = onTagLongPress,
-                timeFormat = timeFormat
+                timeFormat = timeFormat,
+                isSelected = selectedIds.contains(item.id)
             )
         }
     }
@@ -191,10 +229,12 @@ class CallLogAdapter(
         callTime: TextView,
         callDirection: android.widget.ImageView,
         item: CallLogEntity,
-        onCallClick: (CallLogEntity) -> Unit,
+        onEntryClick: (CallLogEntity) -> Unit,
+        onEntryLongPress: (CallLogEntity) -> Unit,
         onContactClick: (CallLogEntity) -> Unit,
         onTagLongPress: (CallLogEntity) -> Unit,
-        timeFormat: SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        timeFormat: SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault()),
+        isSelected: Boolean = false
     ) {
         val fallbackName = if (item.phoneNumber.isBlank()) {
             context.getString(R.string.unknown_caller)
@@ -230,11 +270,16 @@ class CallLogAdapter(
             callerName.setTextColor(typedValue.data)
         }
 
-        rowRoot.setOnClickListener { onCallClick(item) }
+        rowRoot.alpha = if (isSelected) 0.65f else 1f
+        rowRoot.setOnClickListener { onEntryClick(item) }
         rowRoot.setOnLongClickListener {
-            onTagLongPress(item)
+            onEntryLongPress(item)
             true
         }
         avatarContainer.setOnClickListener { onContactClick(item) }
+        tagLabel.setOnLongClickListener {
+            onTagLongPress(item)
+            true
+        }
     }
 }

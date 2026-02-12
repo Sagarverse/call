@@ -5,14 +5,14 @@
     android:id="@+id/incoming_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black">
+    android:background="@drawable/bg_call_backdrop">
 
     <ImageView
         android:id="@+id/callerBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:alpha="0.6"
+        android:alpha="0.5"
         android:contentDescription="@null" />
 
     <View
@@ -40,8 +40,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:gravity="center"
-        android:textColor="@color/white"
-        android:textSize="32sp"
+        android:textColor="@color/text_primary"
+        android:textSize="30sp"
         android:fontFamily="sans-serif-medium"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -54,7 +54,7 @@
         android:layout_marginTop="4dp"
         android:gravity="center"
         android:textColor="@color/text_secondary"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:fontFamily="sans-serif"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

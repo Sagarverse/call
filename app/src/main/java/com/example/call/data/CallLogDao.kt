@@ -43,4 +43,10 @@ interface CallLogDao {
 
     @Query("DELETE FROM call_logs")
     suspend fun clearAll()
+
+    @Query("DELETE FROM call_logs WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM call_logs WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
 }

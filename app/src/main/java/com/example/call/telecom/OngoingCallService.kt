@@ -138,22 +138,22 @@ class OngoingCallService : Service() {
             .setUsesChronometer(startTime > 0L)
             .setWhen(if (startTime > 0L) startTime else System.currentTimeMillis())
             .addAction(
-                0,
+                if (isMuted) android.R.drawable.ic_lock_silent_mode_off else android.R.drawable.ic_lock_silent_mode,
                 if (isMuted) getString(R.string.unmute) else getString(R.string.mute),
                 mutePending
             )
             .addAction(
-                0,
+                if (isSpeaker) android.R.drawable.stat_sys_speakerphone else android.R.drawable.stat_sys_speakerphone,
                 if (isSpeaker) getString(R.string.speaker_off) else getString(R.string.speaker),
                 speakerPending
             )
             .addAction(
-                0,
+                if (call?.state == Call.STATE_HOLDING) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
                 if (call?.state == Call.STATE_HOLDING) getString(R.string.unhold) else getString(R.string.hold),
                 holdPending
             )
-            .addAction(0, getString(R.string.return_to_call), openPending)
-            .addAction(0, getString(R.string.end_call), endPending)
+            .addAction(android.R.drawable.ic_menu_view, getString(R.string.return_to_call), openPending)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.end_call), endPending)
             .setOngoing(true)
             .build()
     }

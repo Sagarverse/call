@@ -27,18 +27,24 @@ class CallStatsViewModel(private val repository: CallLogRepository) : ViewModel(
     }
 
     private fun computeSummary(logs: List<CallLogEntity>): StatsSummary {
-        val calendar = Calendar.getInstance()
-        
-        // Reset to midnight for today
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
+        val now = System.currentTimeMillis()
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
         val todayStart = calendar.timeInMillis
 
-        // Reset to start of week (e.g., Monday)
-        calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-        val weekStart = calendar.timeInMillis
+        val weekCalendar = Calendar.getInstance().apply {
+            timeInMillis = todayStart
+            set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+        }
+        if (weekCalendar.timeInMillis > now) {
+            weekCalendar.add(Calendar.WEEK_OF_YEAR, -1)
+        }
+        val weekStart = weekCalendar.timeInMillis
 
         val dailyLogs = logs.filter { it.timestamp >= todayStart }
         val weeklyLogs = logs.filter { it.timestamp >= weekStart }

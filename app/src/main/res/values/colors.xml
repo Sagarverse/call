@@ -1,44 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Premium Day/Night Adaptive Palette -->
-    <color name="bg_dark">#000000</color>
-    <color name="bg_dark_elevated">#26FFFFFF</color>
+    <color name="bg_dark">#0B0D12</color>
+    <color name="bg_deep">#151A23</color>
+    <color name="bg_dark_elevated">#1F2A33</color>
 
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B3FFFFFF</color>
-    <color name="text_tertiary">#80FFFFFF</color>
+    <color name="text_primary">#F5F7FF</color>
+    <color name="text_secondary">#B8C2D6</color>
+    <color name="text_tertiary">#7A859B</color>
 
-    <color name="call_green">#30D158</color>
-    <color name="call_red">#FF453A</color>
+    <color name="call_green">#2BD87F</color>
+    <color name="call_red">#FF5C5C</color>
+    <color name="message_blue">#3B82F6</color>
 
-    <color name="divider">#1AFFFFFF</color>
+    <color name="divider">#1E2633</color>
 
     <!-- Glassmorphism specific -->
     <color name="glass_white">#1AFFFFFF</color>
-    <color name="glass_stroke">#33FFFFFF</color>
-    <color name="glass_active">#FFFFFF</color>
+    <color name="glass_stroke">#2A3A4F</color>
+    <color name="glass_active">#F5F7FF</color>
 
     <!-- Fallbacks/Standard -->
-    <color name="primary">#0A0A0A</color>
-    <color name="onPrimary">#FFFFFF</color>
-    <color name="surface">#000000</color>
-    <color name="onSurface">#FFFFFF</color>
-    <color name="onSurfaceVariant">#B3FFFFFF</color>
+    <color name="primary">#0B0D12</color>
+    <color name="onPrimary">#F5F7FF</color>
+    <color name="surface">#0B0D12</color>
+    <color name="onSurface">#F5F7FF</color>
+    <color name="onSurfaceVariant">#B8C2D6</color>
 
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 
     <!-- Gradients -->
-    <color name="grad_start">#4D000000</color>
-    <color name="grad_end">#000000</color>
+    <color name="grad_start">#30425F</color>
+    <color name="grad_end">#0B0D12</color>
 
     <!-- Missing colors for cards and blobs -->
-    <color name="card_purple">#BB86FC</color>
-    <color name="card_blue">#3700B3</color>
-    <color name="card_pink">#FF4081</color>
-    <color name="card_orange">#FF9800</color>
-    <color name="card_violet">#9C27B0</color>
-    <color name="blob_pink">#FF80AB</color>
-    <color name="blob_purple">#D1C4E9</color>
-    <color name="blob_blue">#82B1FF</color>
+    <color name="card_purple">#9B87FF</color>
+    <color name="card_blue">#3B82F6</color>
+    <color name="card_pink">#F472B6</color>
+    <color name="card_orange">#F59E0B</color>
+    <color name="card_violet">#7C5CFF</color>
+    <color name="blob_pink">#F5A2C9</color>
+    <color name="blob_purple">#B9A6FF</color>
+    <color name="blob_blue">#8AB4FF</color>
 </resources>

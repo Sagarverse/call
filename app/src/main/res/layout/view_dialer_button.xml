@@ -3,11 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_dialer_button"
     android:clickable="true"
     android:focusable="true"
-    android:minHeight="84dp"
-    android:paddingVertical="12dp">
+    android:foreground="?attr/selectableItemBackgroundBorderless"
+    android:minHeight="88dp"
+    android:minWidth="88dp"
+    android:paddingVertical="8dp">
 
     <TextView
         android:id="@+id/button_number"

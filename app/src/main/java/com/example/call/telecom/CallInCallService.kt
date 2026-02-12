@@ -4,6 +4,7 @@ import android.content.Intent
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
+import androidx.core.content.ContextCompat
 import com.example.call.data.AppDatabase
 import com.example.call.data.CallLogRepository
 import com.example.call.ui.call.CallSummaryActivity
@@ -32,6 +33,19 @@ class CallInCallService : InCallService() {
                 else -> showOngoing(call)
             }
         }
+
+        override fun onDetailsChanged(call: Call, details: Call.Details) {
+            super.onDetailsChanged(call, details)
+            CallController.onCallDetailsChanged(call)
+        }
+
+        override fun onConferenceableCallsChanged(
+            call: Call,
+            conferenceableCalls: MutableList<Call>
+        ) {
+            super.onConferenceableCallsChanged(call, conferenceableCalls)
+            CallController.onConferenceableCallsChanged(call)
+        }
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
@@ -57,8 +71,8 @@ class CallInCallService : InCallService() {
         super.onCallRemoved(call)
         call.unregisterCallback(callCallback)
         CallController.removeCall(call)
-        CallController.bindService(null)
-        if (CallController.calls.value.isEmpty()) {
+        if (CallController.calls.value.calls.isEmpty()) {
+            CallController.bindService(null)
             OngoingCallService.stop(this)
         }
     }
@@ -92,7 +106,10 @@ class CallInCallService : InCallService() {
         serviceScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getInstance(applicationContext).callLogDao()
             val repository = CallLogRepository(dao)
-            val logId = repository.saveCallFromTelecom(call)
+            val logId = repository.saveCallFromTelecom(
+                applicationContext.contentResolver,
+                call
+            )
             
             launch(Dispatchers.Main) {
                 showSummary(logId)

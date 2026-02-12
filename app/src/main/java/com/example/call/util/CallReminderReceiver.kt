@@ -5,15 +5,14 @@ import android.content.Context
 import android.content.Intent
 
 class CallReminderReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val number = intent.getStringExtra(EXTRA_NUMBER).orEmpty()
-        if (number.isBlank()) return
-        val name = intent.getStringExtra(EXTRA_NAME)
-        CallReminderScheduler.showReminderNotification(context, name, number)
+    companion object {
+        const val EXTRA_NAME = "extra_name"
+        const val EXTRA_NUMBER = "extra_number"
     }
 
-    companion object {
-        const val EXTRA_NUMBER = "extra_number"
-        const val EXTRA_NAME = "extra_name"
+    override fun onReceive(context: Context, intent: Intent) {
+        val name = intent.getStringExtra(EXTRA_NAME)
+        val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
+        CallReminderScheduler.showReminderNotification(context, name, number)
     }
 }

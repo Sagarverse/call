@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="72dp"
+    android:layout_height="80dp"
     android:background="@color/bg_dark"
     android:clickable="true"
     android:focusable="true"
@@ -41,8 +41,10 @@
         android:textColor="@color/text_primary"
         android:textSize="16sp"
         app:layout_constraintStart_toEndOf="@id/contactAvatar"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toStartOf="@id/quickCallContact"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/contactNumber"
+        app:layout_constraintVertical_chainStyle="packed" />
 
     <TextView
         android:id="@+id/contactNumber"
@@ -53,8 +55,44 @@
         android:textColor="@color/text_secondary"
         android:textSize="13sp"
         app:layout_constraintStart_toStartOf="@id/contactName"
+        app:layout_constraintEnd_toStartOf="@id/quickCallContact"
+        app:layout_constraintTop_toBottomOf="@id/contactName"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/quickCallContact"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="4dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:contentDescription="@string/call"
+        app:backgroundTint="@color/call_green"
+        app:icon="@android:drawable/ic_menu_call"
+        app:iconSize="18dp"
+        app:iconTint="@color/text_primary"
+        app:cornerRadius="18dp"
+        app:layout_constraintEnd_toStartOf="@id/quickMessageContact"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/quickMessageContact"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:contentDescription="@string/message"
+        app:backgroundTint="@color/message_blue"
+        app:icon="@android:drawable/ic_menu_send"
+        app:iconSize="18dp"
+        app:iconTint="@color/text_primary"
+        app:cornerRadius="18dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/contactName" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
     <View
         android:layout_width="0dp"

@@ -46,6 +46,25 @@ object ContactLookup {
         return Result(null, null)
     }
 
+    fun findPhoneNumberByName(context: Context, name: String): String? {
+        val canRead = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!canRead) return null
+
+        val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+        val projection = arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER)
+        val selection = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
+        val selectionArgs = arrayOf("%$name%")
+        
+        return context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+            } else null
+        }
+    }
+
     fun findContactUri(context: Context, phoneNumber: String?): android.net.Uri? {
         if (phoneNumber.isNullOrBlank()) return null
         val canRead = ContextCompat.checkSelfPermission(
@@ -74,6 +93,54 @@ object ContactLookup {
             }
         }
         return null
+    }
+
+    fun findContactEmail(context: Context, phoneNumber: String?): String? {
+        if (phoneNumber.isNullOrBlank()) return null
+        val canRead = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!canRead) return null
+
+        val contactId = findContactId(context, phoneNumber) ?: return null
+        val projection = arrayOf(ContactsContract.CommonDataKinds.Email.ADDRESS)
+        val selection = ContactsContract.CommonDataKinds.Email.CONTACT_ID + " = ?"
+        val args = arrayOf(contactId.toString())
+        return context.contentResolver.query(
+            ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+            projection,
+            selection,
+            args,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Email.ADDRESS)
+                cursor.getString(index)
+            } else null
+        }
+    }
+
+    fun findContactId(context: Context, phoneNumber: String?): Long? {
+        if (phoneNumber.isNullOrBlank()) return null
+        val canRead = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!canRead) return null
+
+        val lookupUri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI
+        val uri = android.net.Uri.withAppendedPath(
+            lookupUri,
+            android.net.Uri.encode(phoneNumber)
+        )
+        val projection = arrayOf(ContactsContract.PhoneLookup._ID)
+        return context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup._ID)
+                cursor.getLong(idIndex)
+            } else null
+        }
     }
 
     private fun loadPhoto(contentResolver: ContentResolver, uriString: String?): Bitmap? {

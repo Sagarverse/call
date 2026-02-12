@@ -7,8 +7,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 object CallController {
-    private val _calls = MutableStateFlow<List<Call>>(emptyList())
-    val calls: StateFlow<List<Call>> = _calls
+    data class CallListState(
+        val calls: List<Call>,
+        val version: Long
+    )
+
+    private val _calls = MutableStateFlow(CallListState(emptyList(), 0L))
+    val calls: StateFlow<CallListState> = _calls
 
     private val _currentCallFlow = MutableStateFlow<Call?>(null)
     val currentCallFlow: StateFlow<Call?> = _currentCallFlow
@@ -31,18 +36,33 @@ object CallController {
     }
 
     fun addCall(call: Call) {
-        _calls.value = (_calls.value + call).distinct()
+        val updated = (_calls.value.calls + call).distinct()
+        updateCalls(updated)
         updateCurrentCall()
     }
 
     fun removeCall(call: Call) {
-        _calls.value = _calls.value.filter { it != call }
+        val updated = _calls.value.calls.filter { it != call }
+        updateCalls(updated)
         updateCurrentCall()
     }
 
     fun onCallStateChanged(call: Call) {
-        if (_calls.value.contains(call)) {
+        if (_calls.value.calls.contains(call)) {
+            touchCalls()
             updateCurrentCall()
+        }
+    }
+
+    fun onCallDetailsChanged(call: Call) {
+        if (_calls.value.calls.contains(call)) {
+            touchCalls()
+        }
+    }
+
+    fun onConferenceableCallsChanged(call: Call) {
+        if (_calls.value.calls.contains(call)) {
+            touchCalls()
         }
     }
 
@@ -56,9 +76,9 @@ object CallController {
 
     fun getPrimaryCall(): Call? = currentCall
 
-    fun getActiveCall(): Call? = _calls.value.firstOrNull { it.state == Call.STATE_ACTIVE }
+    fun getActiveCall(): Call? = _calls.value.calls.firstOrNull { it.state == Call.STATE_ACTIVE }
 
-    fun getHoldingCall(): Call? = _calls.value.firstOrNull { it.state == Call.STATE_HOLDING }
+    fun getHoldingCall(): Call? = _calls.value.calls.firstOrNull { it.state == Call.STATE_HOLDING }
 
     fun canSwap(): Boolean = getActiveCall() != null && getHoldingCall() != null
 
@@ -136,12 +156,20 @@ object CallController {
     }
 
     private fun updateCurrentCall() {
-        val calls = _calls.value
+        val calls = _calls.value.calls
         val active = calls.firstOrNull { it.state == Call.STATE_ACTIVE }
         val dialing = calls.firstOrNull {
             it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING
         }
         val holding = calls.firstOrNull { it.state == Call.STATE_HOLDING }
         currentCall = active ?: dialing ?: holding ?: calls.firstOrNull()
+    }
+
+    private fun updateCalls(updatedCalls: List<Call>) {
+        _calls.value = CallListState(updatedCalls, _calls.value.version + 1)
+    }
+
+    private fun touchCalls() {
+        _calls.value = _calls.value.copy(version = _calls.value.version + 1)
     }
 }
