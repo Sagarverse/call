@@ -24,10 +24,20 @@
         app:layout_constraintBottom_toBottomOf="parent">
 
         <ImageView
+            android:id="@+id/callerAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null" />
+
+        <ImageView
             android:id="@+id/callDirection"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_gravity="center"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="2dp"
+            android:padding="2dp"
+            android:background="@drawable/bg_glass_card"
             android:contentDescription="@null"
             app:tint="@color/text_secondary" />
     </com.google.android.material.card.MaterialCardView>

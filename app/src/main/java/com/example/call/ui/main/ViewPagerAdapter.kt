@@ -13,11 +13,11 @@ class ViewPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapte
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> DialerFragment()
-            1 -> CallLogsFragment()
+            0 -> CallLogsFragment()
+            1 -> DialerFragment()
             2 -> ContactsFragment()
             3 -> CallStatsFragment()
-            else -> DialerFragment()
+            else -> CallLogsFragment()
         }
     }
 }

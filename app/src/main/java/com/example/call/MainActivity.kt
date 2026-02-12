@@ -74,11 +74,14 @@ class MainActivity : AppCompatActivity() {
                 updateTabs(position)
             }
         })
+        // Set starting page to Call Logs (index 0 now after interchange)
+        binding.viewPager.currentItem = 0
     }
 
     private fun setupBottomNav() {
-        binding.dialerTab.setOnClickListener { binding.viewPager.currentItem = 0 }
-        binding.callLogsTab.setOnClickListener { binding.viewPager.currentItem = 1 }
+        // Updated indices to match interchanged layout: 0 is Call Logs, 1 is Dialer
+        binding.callLogsTab.setOnClickListener { binding.viewPager.currentItem = 0 }
+        binding.dialerTab.setOnClickListener { binding.viewPager.currentItem = 1 }
         binding.contactsTab.setOnClickListener { binding.viewPager.currentItem = 2 }
         binding.statsTab.setOnClickListener { binding.viewPager.currentItem = 3 }
     }
@@ -87,11 +90,12 @@ class MainActivity : AppCompatActivity() {
         val activeColor = ContextCompat.getColor(this, R.color.call_green)
         val inactiveColor = ContextCompat.getColor(this, R.color.text_secondary)
 
-        binding.dialerIndicator.visibility = if (position == 0) android.view.View.VISIBLE else android.view.View.INVISIBLE
-        binding.dialerButton.setTextColor(if (position == 0) activeColor else inactiveColor)
+        // Updated mapping: position 0 is Logs, position 1 is Dialer
+        binding.logsIndicator.visibility = if (position == 0) android.view.View.VISIBLE else android.view.View.INVISIBLE
+        binding.callLogsButton.setTextColor(if (position == 0) activeColor else inactiveColor)
 
-        binding.logsIndicator.visibility = if (position == 1) android.view.View.VISIBLE else android.view.View.INVISIBLE
-        binding.callLogsButton.setTextColor(if (position == 1) activeColor else inactiveColor)
+        binding.dialerIndicator.visibility = if (position == 1) android.view.View.VISIBLE else android.view.View.INVISIBLE
+        binding.dialerButton.setTextColor(if (position == 1) activeColor else inactiveColor)
 
         binding.contactsIndicator.visibility = if (position == 2) android.view.View.VISIBLE else android.view.View.INVISIBLE
         binding.contactsButton.setTextColor(if (position == 2) activeColor else inactiveColor)
@@ -101,7 +105,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun showDialerPage() {
-        binding.viewPager.currentItem = 0
+        binding.viewPager.currentItem = 1 // Dialer is now at index 1
     }
 
     fun requestCallPermissionsIfNeeded() {

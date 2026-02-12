@@ -50,7 +50,8 @@ class CallLogRepository(private val dao: CallLogDao) {
             else -> "Unknown"
         }
 
-        val displayName = lookupContactName(contentResolver, number)
+        // Fresh contact lookup immediately when saving
+        val displayName = lookupContactName(contentResolver, number) ?: details.callerDisplayName?.toString()
 
         val log = CallLogEntity(
             phoneNumber = number,
@@ -102,19 +103,18 @@ class CallLogRepository(private val dao: CallLogDao) {
                         val direction = mapDirection(cursor.getInt(typeIndex))
                         val durationSeconds = cursor.getLong(durationIndex)
 
-                        var displayName = cachedName
-                        if (canReadContacts && !number.isNullOrBlank()) {
-                            val contactName = lookupContactName(contentResolver, number)
-                            if (!contactName.isNullOrBlank()) {
-                                displayName = contactName
-                            }
+                        // Force fresh lookup if we have contacts permission
+                        var displayName = if (canReadContacts && number.isNotBlank()) {
+                            lookupContactName(contentResolver, number) ?: cachedName
+                        } else {
+                            cachedName
                         }
 
                         results.add(
                             CallLogEntity(
                                 systemId = systemId,
                                 phoneNumber = number,
-                                displayName = displayName,
+                                displayName = displayName?.takeIf { it.isNotBlank() },
                                 direction = direction,
                                 timestamp = timestamp,
                                 durationSeconds = durationSeconds,
@@ -152,13 +152,16 @@ class CallLogRepository(private val dao: CallLogDao) {
         phoneNumber: String
     ): String? {
         if (phoneNumber.isBlank()) return null
+        
+        // Use the PhoneLookup provider which is designed specifically for this purpose
         val uri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI
         val lookupUri = android.net.Uri.withAppendedPath(uri, android.net.Uri.encode(phoneNumber))
         val projection = arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME)
+        
         return try {
             contentResolver.query(lookupUri, projection, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    cursor.getString(0)
+                    cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME))
                 } else null
             }
         } catch (e: Exception) {

@@ -204,13 +204,8 @@ class CallLogsFragment : Fragment() {
                     }
                 }
 
-                viewHolder.itemView.translationX = 0f
+                // Force reset of the swiped view
                 adapter.notifyItemChanged(position)
-            }
-
-            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                super.clearView(recyclerView, viewHolder)
-                viewHolder.itemView.translationX = 0f
             }
 
             override fun onChildDraw(
@@ -230,14 +225,16 @@ class CallLogsFragment : Fragment() {
                 val itemView = viewHolder.itemView
                 val p = Paint()
 
-                if (dX > 0) { // Call
-                    p.color = Color.parseColor("#30D158")
-                    val background = RectF(itemView.left.toFloat(), itemView.top.toFloat(), dX, itemView.bottom.toFloat())
-                    c.drawRect(background, p)
-                } else if (dX < 0) { // Message
-                    p.color = Color.parseColor("#007AFF")
-                    val background = RectF(itemView.right.toFloat() + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
-                    c.drawRect(background, p)
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && (dX != 0f)) {
+                    if (dX > 0) { // Call
+                        p.color = Color.parseColor("#30D158")
+                        val background = RectF(itemView.left.toFloat(), itemView.top.toFloat(), dX, itemView.bottom.toFloat())
+                        c.drawRect(background, p)
+                    } else if (dX < 0) { // Message
+                        p.color = Color.parseColor("#007AFF")
+                        val background = RectF(itemView.right.toFloat() + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                        c.drawRect(background, p)
+                    }
                 }
 
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)

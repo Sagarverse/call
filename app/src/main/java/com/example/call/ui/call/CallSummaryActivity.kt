@@ -1,7 +1,14 @@
 package com.example.call.ui.call
 
 import android.os.Bundle
+import android.text.InputType
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.Spinner
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -47,7 +54,7 @@ class CallSummaryActivity : AppCompatActivity() {
         }
 
         binding.remindMe.setOnClickListener {
-            showReminderOptions()
+            showCustomReminderDialog()
         }
 
         lifecycleScope.launch {
@@ -78,29 +85,56 @@ class CallSummaryActivity : AppCompatActivity() {
         }
     }
 
-    private fun showReminderOptions() {
+    private fun showCustomReminderDialog() {
         val log = currentLog ?: return
-        val options = arrayOf(
-            getString(R.string.remind_in_15),
-            getString(R.string.remind_in_60),
-            getString(R.string.remind_in_1d)
-        )
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.remind_me))
-            .setItems(options) { _, which ->
-                val delayMillis = when (which) {
-                    0 -> 15 * 60 * 1000L
-                    1 -> 60 * 60 * 1000L
-                    else -> 24 * 60 * 60 * 1000L
+        
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(60, 40, 60, 0)
+        }
+
+        val input = EditText(this).apply {
+            hint = "Value"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val unitSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@CallSummaryActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                arrayOf("Seconds", "Minutes", "Hours")
+            )
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        container.addView(input)
+        container.addView(unitSpinner)
+
+        AlertDialog.Builder(this)
+            .setTitle("Set Callback Reminder")
+            .setView(container)
+            .setPositiveButton("Set") { _, _ ->
+                val value = input.text.toString().toLongOrNull()
+                if (value != null && value > 0) {
+                    val delayMillis = when (unitSpinner.selectedItemPosition) {
+                        0 -> value * 1000L
+                        1 -> value * 60 * 1000L
+                        else -> value * 60 * 60 * 1000L
+                    }
+                    val triggerAt = System.currentTimeMillis() + delayMillis
+                    CallReminderScheduler.schedule(
+                        this,
+                        log.displayName,
+                        log.phoneNumber,
+                        triggerAt
+                    )
+                    Toast.makeText(this, "Reminder set for $value ${unitSpinner.selectedItem}", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Please enter a valid number", Toast.LENGTH_SHORT).show()
                 }
-                val triggerAt = System.currentTimeMillis() + delayMillis
-                CallReminderScheduler.schedule(
-                    this,
-                    log.displayName,
-                    log.phoneNumber,
-                    triggerAt
-                )
             }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
